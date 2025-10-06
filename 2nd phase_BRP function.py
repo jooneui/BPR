@@ -327,9 +327,10 @@ plt.title('BPR vs Triangular F.D.')
 #     - The vertical distance (y-axis difference) is the natural error measure.
 #         - It directly means: “how wrong is my predicted travel time at this specific time?”
 #         - This matches their application: keeping travel times accurate at every time step.
-# -
 
+# + [markdown] jp-MarkdownHeadingCollapsed=true
 # #### RDP threshold in this study
+# -
 
 # ### PELT method
 
@@ -357,7 +358,9 @@ plt.title('BPR vs Triangular F.D.')
 #     - If multiple peak segments are adjacent, they are grouped together under the same label.
 #     - For each peak period, the start time and duration are recorded for further analysis.
 
+# + [markdown] jp-MarkdownHeadingCollapsed=true
 # ### Segmentation setting
+# -
 
 #
 # <img src='./01_BPR/02_1_presentation_fig/changepoint_logic.png' width=70%>   
@@ -734,7 +737,8 @@ import warnings
 warnings.filterwarnings('ignore')
 
 
-# + [markdown] jp-MarkdownHeadingCollapsed=true
+# -
+
 # ### (Code) Peak period detection
 
 # + tags=["code"]
@@ -745,7 +749,8 @@ def rawdata_setting(full_path,VDS_num,file_name,lane_num):
     
     rawdata = pd.read_excel("%s/%s" % (full_path,file_name))
     
-    rawdata.columns = ['time'] + [f'flow_{i}' for i in lane_num] + [f'occ_{i}' for i in lane_num]
+    rawdata.columns = ['time'] + [f'flow_{i}' for i in lane_num] + [f'speed_{i}' for i in lane_num]
+    # rawdata.columns = ['time'] + [f'flow_{i}' for i in lane_num] + [f'occ_{i}' for i in lane_num]
 
     rawdata['time'] = pd.to_datetime(rawdata['time'])
     # 'time_filter' is to convert the time to minutes.(ex. 02:30:30 -> 150.30min)
@@ -817,25 +822,29 @@ def avg_traffic_state(rawdata, time_frame, lane_num, gfactor):
     
     agg_density_per_lane = np.mean(rawdata_density, axis=0)
     cv_density = np.std(agg_density_per_lane, ddof=0)/np.mean(agg_density_per_lane)
-    
+
     agg_speed_per_lane = []
+    agg_speed_per_lane = agg_flow_per_lane / agg_density_per_lane
+    print("agg_speed_per_lane", agg_speed_per_lane)
+    
+    # agg_speed_per_lane = []
     
     # Step 3: calculate indivdual 5-min aggregated per lane speed to calculate the CV_speed
-    for lane in lane_num:
-        flow_unit = np.array(rawdata_flow).transpose()[(lane-1)].flatten()
-        rest_flow_df = rawdata_flow_df.drop(columns = [f'flow_{lane}'])
-        speed_unit = np.array(rawdata_speed).transpose()[(lane-1)].flatten()
-        density_unit = np.array(rawdata_density).transpose()[(lane-1)].flatten()
+    # for lane in lane_num:
+    #     flow_unit = np.array(rawdata_flow).transpose()[(lane-1)].flatten()
+    #     rest_flow_df = rawdata_flow_df.drop(columns = [f'flow_{lane}'])
+    #     speed_unit = np.array(rawdata_speed).transpose()[(lane-1)].flatten()
+    #     density_unit = np.array(rawdata_density).transpose()[(lane-1)].flatten()
         
-        # assign value 0 to the traffic flow when the density is equal to zero(= speed is equal to inf)
-        # when density=0, speed becomes inf, making it impossible to calculate the average speeds(sum_flow/sumproduct(flow,1/speed))
-        # Assigning a traffic flow of zero to this case gives it zero weight, which doesn't affect the average speed, 
-        # allowing the calculation of average speeds at the same time.
-        inf_indices = (speed_unit == np.inf)
-        flow_unit[inf_indices] = 0
+    #     # assign value 0 to the traffic flow when the density is equal to zero(= speed is equal to inf)
+    #     # when density=0, speed becomes inf, making it impossible to calculate the average speeds(sum_flow/sumproduct(flow,1/speed))
+    #     # Assigning a traffic flow of zero to this case gives it zero weight, which doesn't affect the average speed, 
+    #     # allowing the calculation of average speeds at the same time.
+    #     inf_indices = (speed_unit == np.inf)
+    #     flow_unit[inf_indices] = 0
         
-        avg_speed_per_lane = average_speed_calculation(flow_unit, speed_unit, density_unit, rest_flow_df, malfunc_inclusion = False)
-        agg_speed_per_lane.append(avg_speed_per_lane)
+    # avg_speed_per_lane = average_speed_calculation(flow_unit, speed_unit, density_unit, rest_flow_df, malfunc_inclusion = False)
+    # agg_speed_per_lane.append(avg_speed_per_lane)
         
     cv_speed = np.std(agg_speed_per_lane, ddof=0)/np.mean(agg_speed_per_lane)
     
@@ -901,6 +910,59 @@ def aggregate_rawdata_for_peakdetection(rawdata, aggregate_timeframe, raw_timefr
 
 
 # +
+""" Sometimes, the rawdata interval is too short to see the stable traffic pattern, so rawdata is aggregated to specific time interval.
+This function address calculating traffic state variables in every pre-determined aggregated time interval.
+
+
+* "This is not equal to the 'Research_BPR_function_Develop.ipynb', because of rawdata['time_slot'] is different: it used the median value
+Interpolate_missing(traffic, config) is also changed.
+"""
+
+def aggregate_rawdata_5min(rawdata, raw_timeframe, date, lane_num, VDS_num):
+    
+    # Pre-compute time_slot for all data to avoid doing it in the loop
+    rawdata['time_slot'] = (np.floor(rawdata['time_filter'] / raw_timeframe)) * raw_timeframe + raw_timeframe/2
+    
+    # Initialize list to store each row's data for final DataFrame
+    traffic_within_day = pd.DataFrame()
+    plot_date = []
+     
+    # Operate on grouped DataFrame
+    flow_set = [f'flow_{i}' for i in range(1,lane_num[-1]+1,1)]
+    density_set = [f'density_{i}' for i in range(1,lane_num[-1]+1,1)]
+    speed_set = [f'speed_{i}' for i in range(1,lane_num[-1]+1,1)]
+    
+    rawdata[flow_set] *= 60/raw_timeframe
+    # Compute densities with shape alignment, then rename columns to density_*
+    speeds = rawdata[speed_set].replace(0, np.nan)
+    dens_values = rawdata[flow_set].to_numpy() / speeds.to_numpy()
+    dens = pd.DataFrame(dens_values, index=rawdata.index, columns=density_set)
+    
+    # 4) Assign (now lengths match)
+    rawdata[density_set] = dens
+
+    rawdata['flow'] = rawdata[flow_set].mean(axis=1)
+    rawdata['density'] = rawdata[density_set].mean(axis=1)
+    rawdata['speed'] = rawdata['flow'] /  rawdata['density']
+    rawdata['traveltime'] = 1/rawdata['speed'] * 60 
+
+    traffic_within_day = rawdata
+    plot_date = traffic_within_day['time_slot']
+    
+    # Save the data
+    path_directory = f'./{working_f}/12 python file/{VDS_num}'
+    os.makedirs(path_directory, exist_ok=True)
+
+    with open(f'./{working_f}/12 python file/{VDS_num}/traffic_within_day_{date}_raw{raw_timeframe}min_{lane_num}.p', 'wb') as file:
+        pickle.dump(traffic_within_day, file)
+
+    with open(f'./{working_f}/12 python file/{VDS_num}/plot_date_{date}_raw{raw_timeframe}min.p', 'wb') as file:    
+        pickle.dump(plot_date, file)
+    
+    return traffic_within_day, plot_date
+
+
+# + jupyter={"source_hidden": true}
 """
 flow_unit, speed_unit, density_unit: the type of the input must be "np.array"
 rest_flow_df : dataframe time interval as row, lane_id as each column, so it contains values of flow rates in other lanes. 
@@ -950,13 +1012,182 @@ def average_speed_calculation(flow_unit, speed_unit, density_unit, rest_flow_df,
     
     sum_flow = flow_unit.sum()
     sum_product = np.nansum(multiply)
+
+    
        
     avg_speed = sum_flow / sum_product
-    
     return avg_speed
+
+# + jupyter={"source_hidden": true}
+import re
+from functools import reduce
+from datetime import datetime as _dt
+
+def _extract_date_from_filename(fn: str) -> str:
+    """Match your existing logic: last 11..-5 slice already used elsewhere."""
+    # Fallback to slice if pattern stable in your folders
+    return fn[-11:-5]   # e.g., '250915' for YYMMDD
+
+def _index_files_by_date(base_path: str) -> dict:
+    """
+    Return {date_str: filename} for a given VDS directory.
+    base_path = f"{config['path']}/11 Rawdata/{config['dir']}/{VDS}"
+    """
+    files = sorted(os.listdir(base_path))
+    files = [f for f in files if not f.startswith('.')]
+    out = {}
+    for f in files:
+        try:
+            d = _extract_date_from_filename(f)
+            out[d] = f
+        except Exception:
+            continue
+    return out
+
+def _common_dates_and_files(config) -> tuple[list, dict]:
+    """
+    For config['VDS_list'], compute intersection of dates and map to filenames.
+    Returns:
+      dates_common (sorted list of 'YYMMDD'),
+      date_to_files: {date: {vds: filename}}
+    """
+    date_maps = {}
+    for vds in config['VDS_list']:
+        base = os.path.join(config['path'], '11 Rawdata', config['dir'], vds)
+        date_maps[vds] = _index_files_by_date(base)
+
+    # intersection of date keys
+    sets = [set(dmap.keys()) for dmap in date_maps.values()]
+    dates_common = sorted(set.intersection(*sets))
+
+    date_to_files = {d: {vds: date_maps[vds][d] for vds in config['VDS_list']} for d in dates_common}
+    return dates_common, date_to_files
+
+def _dow_from_yymmdd(d: str) -> str:
+    """Return weekday string using your Day_list mapping."""
+    Day_list = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
+    dt = _dt.strptime('20' + d, '%Y%m%d')
+    return Day_list[dt.weekday()]
 
 
 # +
+def _make_vds_config(config, vds: str):
+    """Shallow clone with per-VDS fields."""
+    cfg = dict(config)
+    cfg['VDS_num']  = vds
+    cfg['lane_num'] = config['lane_map'][vds]
+    return cfg
+
+def _build_traffic_for_vds(date: str, filename: str, cfg_vds, vds):
+    """Reuses your existing functions to get a per-VDS day traffic frame."""
+    # load raw + gfactor
+    rawdata, date  = load_raw(filename, cfg_vds)
+    if skip_if_missing(rawdata, cfg_vds):
+        return None  # skip this day for this VDS
+
+    # aggregate or load cached
+    lane_num = c_lane_num[vds]
+    print(vds, lane_num)
+    traffic, plot_date = aggregate_rawdata_5min(rawdata, raw_timeframe, date, lane_num, VDS_num)
+    # traffic, plot_date = load_or_aggregate(rawdata, date, cfg_vds)
+
+    # # same cleaning as your main loop
+    # traffic = highfreeflowspeed_conversion(traffic, cfg_vds)
+    # traffic = interpolate_missing(traffic, cfg_vds)
+    # traffic = assign_fixedtime_peaks(traffic, cfg_vds)  # no-op for 'speedbasedpeak'
+
+    return traffic
+
+
+# -
+
+def _combine_vds_traffic(traffic_list: list[pd.DataFrame], agg_min: int) -> pd.DataFrame:
+    """
+    Given multiple per-VDS daily DataFrames (already interpolated to identical
+    time_slot grids), return a single DataFrame with:
+        ['time_slot','speed','time','flow','density']
+    computed as simple arithmetic means across VDS for each time_slot.
+    """
+    # keep only columns we can consistently average
+    keep = ['time_slot', 'speed', 'flow', 'density']
+    stacked = []
+    for t in traffic_list:
+        if t is not None:
+            stacked.append(t[keep].copy())
+
+    if not stacked:
+        return None
+
+    # Concatenate with keys and average by time_slot
+    combo = (pd.concat(stacked, keys=range(len(stacked)))
+               .groupby('time_slot', as_index=False)[['speed','flow','density']].mean())
+
+    # recompute time (min/mile) from averaged speed
+    combo['time'] = 60.0 / combo['speed']
+
+    # ensure standard ordering like your per-day frames
+    combo = combo[['time_slot','speed','time','flow','density']].sort_values('time_slot').reset_index(drop=True)
+    return combo
+# + jupyter={"source_hidden": true}
+# def compute_metrics(group, division_idx, config, group_num):
+#     """
+#     Compute travel time, total demand, and period label for a traffic division.
+
+#     In 'single' scope (default): uses per-lane columns if present.
+#     In 'multi_vds' or when per-lane columns are absent: uses aggregate 'flow' and 'speed'.
+#     """
+#     # try per-lane first (single-VDS case)
+#     lane_cols_flow  = [f'flow_{i}'   for i in config['lane_num']] if 'lane_num' in config else []
+#     lane_cols_speed = [f'speed_{i}'  for i in config['lane_num']] if 'lane_num' in config else []
+
+#     use_per_lane = (
+#         config.get('spatial_scope','single') == 'single'
+#         and all(c in group.columns for c in lane_cols_flow + lane_cols_speed)
+#         and len(lane_cols_flow) > 0
+#     )
+
+#     if use_per_lane:
+#         flows  = group[lane_cols_flow].values.flatten()
+#         speeds = group[lane_cols_speed].values.flatten()
+#     else:
+#         # fallback for multi-VDS: compute from aggregate columns per time slot
+#         flows  = group['flow'].to_numpy()
+#         speeds = group['speed'].to_numpy()
+
+#     mask = ~np.isnan(speeds)
+#     flow_good, speed_good = flows[mask], speeds[mask]
+
+#     if config['temporal_scale'] in ('speedbasedpeak', 'peak') and division_idx != 0:
+#         time_duration = (len(group)-1) * config['aggregate_timeframe']  # half slot trimming heuristic
+#         # boundary halves for demand when using per-slot flows (applies reasonably in both modes)
+#         flow_good = flow_good.copy()
+#         if len(flow_good) >= 2:
+#             flow_good[0]  = flow_good[0] / 2.0
+#             flow_good[-1]  = flow_good[-1] / 2.0
+
+#         sum_flow   = np.nansum(flow_good)
+#         avg_flow   = np.nanmean(flow_good) * (len(group) / max(len(group)-1,1))
+#         sum_prod   = np.nansum(flow_good / speed_good)
+#         traveltime = (sum_prod / sum_flow) * 60.0 if sum_flow > 0 else np.nan
+
+#         t0 = group.time_slot.min()
+#         m, M = config['peak_periods']['morning']
+#         a, A = config['peak_periods']['afternoon']
+#         if m < t0 < M:   period = 'morning-peak'
+#         elif a < t0 < A: period = 'afternoon-peak'
+#         else:            period = 'off-peak'
+#         demand = sum_flow * (config['aggregate_timeframe']/60.0)
+#     else:
+#         sum_flow   = np.nansum(flow_good)
+#         avg_flow   = np.nanmean(flow_good)
+#         time_duration = (len(group)+group_num-1) * config['aggregate_timeframe']
+#         period = 'off-peak'
+#         sum_prod   = np.nansum(flow_good / speed_good)
+#         traveltime = (sum_prod / sum_flow) * 60.0 if sum_flow > 0 else np.nan
+#         demand     = sum_flow * (config['aggregate_timeframe']/60.0)
+
+#     return traveltime, demand, avg_flow, division_idx, period, time_duration
+# + jupyter={"source_hidden": true}
 """
 This is the plot of average flow and speed over time for every day.
 """
@@ -1291,8 +1522,8 @@ def pelt_speedbased_directpeak(model, df, column, freeflow_speed, freeflow_speed
     if len(idx_lists)>1 :
         for idx in idx_lists[1:]:
             df_filter = df[df['division']==idx]
-            start_time = df_filter['time_slot'].min() 
-            end_time = df_filter['time_slot'].max()
+            start_time = df_filter['time_slot'].min() - aggregate_timeframe/2
+            end_time = df_filter['time_slot'].max() + aggregate_timeframe/2
             length = end_time - start_time
             
             peak_list.append({'idx': idx, 'start': f'{int(start_time // 60):02d}:{int(start_time % 60):02d}', 'end': f'{int(end_time // 60):02d}:{int(end_time % 60):02d}', 'length': length})
@@ -1861,10 +2092,10 @@ def rdp_v_segmentation_peak(df, column, epsilon, freeflow_speed, freeflow_speed_
             prev_peak_end = end
 
     for div_idx, group in df.groupby("division"):
-        # start_time = group["time_slot"].min() - aggregate_timeframe/2
-        # end_time = group["time_slot"].max() + aggregate_timeframe/2
-        start_time = group["time_slot"].min()
-        end_time = group["time_slot"].max()
+        start_time = group["time_slot"].min() - aggregate_timeframe/2
+        end_time = group["time_slot"].max() + aggregate_timeframe/2
+        # start_time = group["time_slot"].min() 
+        # end_time = group["time_slot"].max()
         seg_len = end_time - start_time
 
         if seg_len < min_peak_len and div_idx != 0:
@@ -2026,7 +2257,7 @@ def speedbasedpeak(df, column, speed_upper, min_minutes, max_outliers, aggregate
     return df, peak_list
 
 
-# + jupyter={"source_hidden": true}
+# +
 # =====================
 # Utility Functions
 # =====================
@@ -2038,14 +2269,16 @@ def load_raw(file_name, config):
     """
     date = file_name[-11:-5]
     gfile = f"{config['path']}/11 Rawdata/gfactor/{config['VDS_num']}/gfactor_{date}.xlsx"
-    gfactor = pd.read_excel(gfile)
+    # gfactor = pd.read_excel(gfile)
     rawdata = rawdata_setting(
         full_path=f"{config['path']}/11 Rawdata/{config['dir']}/{config['VDS_num']}",
         VDS_num=config['VDS_num'],
         file_name = file_name,
         lane_num=config['lane_num']
     )
-    return rawdata, gfactor, date
+    # return rawdata, gfactor, date
+    return rawdata, date
+
 
 
 def load_or_aggregate(rawdata, date, config):
@@ -2112,9 +2345,21 @@ def interpolate_missing(traffic, config):
         weight = (t - prev_t) / (next_t - prev_t)
         new_row = row_prev * (1 - weight) + row_next * weight
         new_row['time_slot'] = t
+        
+        ## for the speed in each lane and the average, recalculate based on the interpolated flow and density
+        speed_cols   = [f"speed_{i}"   for i in config['lane_num']]
+        flow_cols    = [f"flow_{i}"    for i in config['lane_num']]
+        density_cols = [f"density_{i}" for i in config['lane_num']]
+        
+        new_row[speed_cols] = (
+            new_row[flow_cols].to_numpy() /
+            new_row[density_cols].replace(0, np.nan).to_numpy())
+        new_row["speed"] = new_row["flow"] / new_row["density"]
+        
         traffic = pd.concat([traffic, new_row.to_frame().T], ignore_index=True)
 
     return traffic.sort_values('time_slot').reset_index(drop=True)
+
 
 
 
@@ -2141,31 +2386,101 @@ def assign_fixedtime_peaks(traffic, config):
 
     return ts
 
+# + jupyter={"source_hidden": true}
+# # flow_good[0],len(group) is not true : lane_num consider!!!!
 
-# -
+
+# def compute_metrics(group, division_idx, config, group_num):
+#     """
+#     Compute travel time, total demand, and period label for a traffic division.
+#     """
+#     flows = group[[f'flow_{i}' for i in config['lane_num']]].values.flatten()
+#     speeds = group[[f'speed_{i}' for i in config['lane_num']]].values.flatten()
+#     # I dont use the mask(because, speeds nan occurs when flow=density=0, when no vehicle passes, 
+#     # but we have to consider this value for the average flow because it represents 0 vehicles pass throught this time interval
+    
+#     mask = ~np.isnan(speeds)
+#     flow_good, speed_good = flows[mask], speeds[mask]
+    
+    
+#     print("len",len(flow_good))
+    
+#     if config['temporal_scale'] in ('speedbasedpeak', 'peak') and division_idx != 0:
+#         # len(group)-1 reason: 
+#         # if congested period is detected as 8:00:30 ~ 8:55:30 then, the division==1 ranges will be 8:00:00 to 9:00:00. 
+#         # so, we need to "-1" to eliminate each side of 2:30 min.
+#         # time_duration = (len(group)-1) * config['aggregate_timeframe']
+#         time_duration = (len(group)) * config['aggregate_timeframe']
+
+#         # demand means total volumes during the congested period
+#         # flow_good[0] = flow_good[0]/2
+#         # flow_good[(len(flow_good)-1)] = flow_good[(len(flow_good)-1)]/2
+
+#         sum_flow = flows.sum()
+#         demand = sum_flow * (config['aggregate_timeframe']/60) / len(config['lane_num'])
+#         # avg_flow = flow_good.mean() * len(group) / (len(group)-1)
+#         avg_flow =  flows.mean()
+#         t0 = group.time_slot.min()
+
+#         sum_prod = (flow_good / speed_good).sum()
+#         traveltime = sum_prod / sum_flow * 60
+        
+#         m, M = config['peak_periods']['morning']
+#         a, A = config['peak_periods']['afternoon']
+
+#         # start time
+#         if m < t0 < M:
+#             period = 'morning-peak'
+#         elif a < t0 < A:
+#             period = 'afternoon-peak'
+#         else:
+#             period = 'off-peak'
+#     else:
+#         sum_flow = flows.sum()
+#         demand = sum_flow * (config['aggregate_timeframe']/60) / len(config['lane_num'])
+#         avg_flow = flows.mean()
+        
+#         print("demand, avg_flow", demand/24, avg_flow)
+#         print(len(flow_good))
+        
+#         # time_duration = (len(group)+group_num-1) * config['aggregate_timeframe']
+#         time_duration = (len(group)) * config['aggregate_timeframe']
+#         period = 'off-peak'
+
+#         ## Actually, it needs to be revised, beacause it does not include the first/last half of the congested period part.
+#         sum_prod = (flow_good / speed_good).sum()
+#         traveltime = sum_prod / sum_flow * 60
+
+#     return traveltime, demand, avg_flow, division_idx, period, time_duration
+
+# + jupyter={"source_hidden": true}
+## This is the version based on the entire lanes' average (flow, density)
 
 def compute_metrics(group, division_idx, config, group_num):
     """
     Compute travel time, total demand, and period label for a traffic division.
     """
-    flows = group[[f'flow_{i}' for i in config['lane_num']]].values.flatten()
-    speeds = group[[f'speed_{i}' for i in config['lane_num']]].values.flatten()
+    flows = group['flow'].values.flatten()
+    speeds = group['speed'].values.flatten()
     mask = ~np.isnan(speeds)
     flow_good, speed_good = flows[mask], speeds[mask]
+    
     
     if config['temporal_scale'] in ('speedbasedpeak', 'peak') and division_idx != 0:
         # len(group)-1 reason: 
         # if congested period is detected as 8:00:30 ~ 8:55:30 then, the division==1 ranges will be 8:00:00 to 9:00:00. 
         # so, we need to "-1" to eliminate each side of 2:30 min.
-        time_duration = (len(group)-1) * config['aggregate_timeframe']
+        time_duration = (len(group)) * config['aggregate_timeframe']
 
         # demand means total volumes during the congested period
-        flow_good[0] = flow_good[0]/2
-        flow_good[(len(flow_good)-1)] = flow_good[(len(flow_good)-1)]/2
+        # flow_good[0] = flow_good[0]/2
+        # flow_good[(len(flow_good)-1)] = flow_good[(len(flow_good)-1)]/2
 
-        sum_flow = flow_good.sum()
-        demand = sum_flow * (config['aggregate_timeframe']/60) / len(config['lane_num'])
-        avg_flow = flow_good.mean() * len(group) / (len(group)-1)
+        sum_flow = flows.sum()
+        demand = sum_flow * (config['aggregate_timeframe']/60)        
+        avg_flow = flows.mean() 
+        # avg_flow = flow_good.mean() * len(group) / (len(group)-1)
+        
         t0 = group.time_slot.min()
 
         sum_prod = (flow_good / speed_good).sum()
@@ -2182,20 +2497,22 @@ def compute_metrics(group, division_idx, config, group_num):
         else:
             period = 'off-peak'
     else:
-        sum_flow = flow_good.sum()
+        sum_flow = flows.sum()
         
-        demand = sum_flow * (config['aggregate_timeframe']/60) / len(config['lane_num'])
-        avg_flow = flow_good.mean()
+        demand = sum_flow * (config['aggregate_timeframe']/60) 
+        avg_flow = flows.mean()
         
-        time_duration = (len(group)+group_num-1) * config['aggregate_timeframe']
+        # time_duration = (len(group)+group_num-1) * config['aggregate_timeframe']
+        time_duration = (len(group)) * config['aggregate_timeframe']
         period = 'off-peak'
 
         ## Actually, it needs to be revised, beacause it does not include the first/last half of the congested period part.
         sum_prod = (flow_good / speed_good).sum()
+        print("sum",sum_flow, sum_prod, speed_good.sum())
         traveltime = sum_prod / sum_flow * 60
 
     return traveltime, demand, avg_flow, division_idx, period, time_duration
-
+# -
 
 # #### (code) implementation
 
@@ -2203,21 +2520,24 @@ def compute_metrics(group, division_idx, config, group_num):
 # Parameters for handling the data
 # raw_timeframe: Defines the timeframe unit in minutes for the input raw data 
 # (e.g., 30 seconds is represented as 0.5 minutes).
-raw_timeframe = 0.5
+raw_timeframe = 5
 
 # path: The base directory path where the raw data files are stored.
 working_f = '01_BPR'
 path = '/Users/jooneuihong/Library/CloudStorage/OneDrive-UCIrvine/14 Github/01_BPR/11 Rawdata'
 
 # directory: The subdirectory name under the main path where the data files are located.
-directory = '30sec'
+directory = '5min'
 
 # VDS_num: The subdirectory name under the main path where the data files are located.
-# VDS_num = '1205583'
 # VDS_num = '1203506'
-VDS_num = '1214006'
+VDS_num = '1212611'
+# VDS_num = '1205572'
+# VDS_num = '1205583'
+# VDS_num = '1214006'
 
-c_lane_num = {'1205583':[1,2,3,4,5,6], '1203506':[1,2,3,4],'1214006':[1,2,3,4]}
+
+c_lane_num = {'1212611':[1,2,3,4,5,6], '1205572':[1,2,3,4,5,6],'1205583':[1,2,3,4,5,6], '1203506':[1,2,3,4],'1214006':[1,2,3,4]}
 lane_num = c_lane_num[VDS_num]
 
 # Constructs the full path to the directory containing the data files.
@@ -2249,6 +2569,12 @@ import pandas as pd
 # Configuration Section
 # =====================
 config = {
+    # spatial processing scope
+    'spatial_scope': 'multi_vds',            # 'single' or 'multi_vds'
+    'VDS_list': ['1205583','1214006','1212611','1205572'],    # used only when spatial_scope == 'multi_vds'
+    'lane_map': c_lane_num,               # {'vds': [lane ids], ...}
+    
+    temporal_scope : 'peak',  # # 'wholeday', 'peak',
     # Temporal granularity: 'hour', 'peak', 'entireday', 'speedbasedpeak'
     'temporal_scale': 'speedbasedpeak',
 
@@ -2267,7 +2593,7 @@ config = {
     'raw_timeframe': raw_timeframe,
     'aggregate_timeframe': 5,
 
-    # Peak window definitions (minutes from midnight)
+    # Peak window definitions (minutes from midnight): start_time basis
     'peak_periods': {
         'morning': (6 * 60, 10 * 60),
         'afternoon': (12.5 * 60, 20 * 60)
@@ -2287,8 +2613,7 @@ config = {
 }
 
 
-# -
-
+# + jupyter={"source_hidden": true}
 def detect_speed_peaks(traffic, date, config):
     """
     Identify peak periods based on speed using chosen method (pelt, derivative, RDP, etc.).
@@ -2361,11 +2686,103 @@ def detect_speed_peaks(traffic, date, config):
              max_outliers = 0, aggregate_timeframe = config['aggregate_timeframe'], 
              method = params['method'])
 
+# +
+# # =====================
+# # Main Processing Loop
+# # =====================
+# c_daily_flow = []
+# c_daily_traveltimes = []
+# c_date = []
+# c_division = []
+# c_period = []
+# c_dayofweek = []
+# c_totaldemand = []
+# c_avgflow = []
+# c_duration = []
+# set_peak_period = pd.DataFrame(columns=["date", "peak_list"])
+# Day_list = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
+
+# # 'wholeday', 'peak'
+# temporal_scope = 'peak'
+
+
+# for file_name in config['file_list']:
+#     print(file_name)
+#     rawdata, gfactor, date = load_raw(file_name, config)
+#     if skip_if_missing(rawdata, config):
+#         continue
+
+#     traffic, plot_date = load_or_aggregate(rawdata, date, config)
+
+#     traffic = highfreeflowspeed_conversion(traffic, config)
+#     traffic = interpolate_missing(traffic, config)
+#     traffic = assign_fixedtime_peaks(traffic, config)
+
+#     if temporal_scope == 'wholeday':
+#         traffic['division'] = 0
+#         group_num = len(traffic['division'].unique())
+        
+#         tt, demand, avg_flow, div, period, time_duration = compute_metrics(traffic, 0, config, group_num)
+#         c_daily_traveltimes.append(tt); c_totaldemand.append(demand); c_avgflow.append(avg_flow)
+#         c_date.append(date); c_division.append(div); c_period.append(period)
+#         c_dayofweek.append(Day_list[int(rawdata.loc[0, 'time'].weekday())]); c_duration.append(time_duration)
+
+#     elif temporal_scope == 'peak':
+#         # Speed-based peak detection
+#         if config['temporal_scale'] == 'speedbasedpeak':
+#             traffic, peaks = detect_speed_peaks(traffic, date, config)
+#             set_peak_period = pd.concat([set_peak_period, pd.DataFrame([{'date': date, 'peak_list': peaks}])], ignore_index=True)
+    
+#         # Compute metrics per division
+#         group_num = len(traffic['division'].unique())
+        
+#         for division_idx, group in traffic.groupby('division'):
+#             tt, demand, avg_flow, div, period, time_duration = compute_metrics(group, division_idx, config, group_num)
+#             c_daily_traveltimes.append(tt); c_totaldemand.append(demand); c_avgflow.append(avg_flow)
+#             c_date.append(date); c_division.append(div); c_period.append(period)
+#             c_dayofweek.append(Day_list[int(rawdata.loc[0, 'time'].weekday())]); c_duration.append(time_duration)
 
 # +
-# =====================
-# Main Processing Loop
-# =====================
+
+
+def speedprofile_plot(df, raw_timeframe, config, date):
+    
+    time_slot_hour = range(raw_timeframe, int(60*24/raw_timeframe) +1, raw_timeframe)
+    
+    # joon, pelt, RDP, derivative
+    title_name = [f'Daily speed profile (VDS: {config['VDS_list']})']   
+    
+    fig, ax1 = plt.subplots(figsize=(12, 5))
+
+    ax1.set_xlabel('Time (Hours)',fontsize=16)
+    ax1.set_ylabel('Speed (mph)',fontsize=16, color = 'green')
+    ax1.set_title(title_name,fontsize=18)
+    ax1.grid(True)
+    ax1.set_xlim(0, 24+.1)
+    ax1.set_xticks(np.arange(0, 25, 1))
+
+    ax1.set_ylim(0,85)
+    ax1.set_yticks(np.arange(0, 85 + 1, 10))  # Ticks at 0, 20, 40, 60, 80
+    # Set y-axis tick label color
+    ax1.tick_params(axis='y', colors='green')
+    # Set y-axis spine (axis line) color
+    ax1.spines['left'].set_color('green')
+
+    colors = ['green','blue','black','red','yellow']
+    
+    for i, VDS  in enumerate(config['VDS_list']):
+        df_per_VDS = df[i]
+        df_per_VDS['time_slot_hour'] = df_per_VDS['time_slot'] / 60
+        ax1.plot(df_per_VDS['time_slot_hour'], df_per_VDS['speed'], color=colors[i], linewidth=1, label=str(VDS))
+        ax1.legend(title="VDS", fontsize=10, loc="upper right")  # add legend inside plo
+        
+    fig.tight_layout()
+    plt.savefig(f'./{working_f}/02 fig/17 Speedprofile/{config['VDS_list']}_{date}.png')
+    # plt.show()  # Uncomment if you want to display the plot
+
+# +
+
+
 c_daily_flow = []
 c_daily_traveltimes = []
 c_date = []
@@ -2375,64 +2792,248 @@ c_dayofweek = []
 c_totaldemand = []
 c_avgflow = []
 c_duration = []
+c_start = []
+c_end = []
 set_peak_period = pd.DataFrame(columns=["date", "peak_list"])
-Day_list = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
-
-# 'wholeday', 'peak'
-temporal_scope = 'peak'
 
 
-for file_name in config['file_list']:
-    print(file_name)
-    rawdata, gfactor, date = load_raw(file_name, config)
-    if skip_if_missing(rawdata, config):
-        continue
+if config.get('spatial_scope','single') == 'single':
+    # === your existing main loop (unchanged) ===
+    for file_name in config['file_list']:
+        print(file_name)
+        rawdata, date = load_raw(file_name, config)
+        # if skip_if_missing(rawdata, config):
+        #     continue
+        print(rawdata.head())
+        traffic, plot_date = aggregate_rawdata_5min(rawdata, raw_timeframe, date, lane_num, VDS_num)
+        print(traffic.head())
+        traffic.to_csv(f"traffic_{config['VDS_num']}_{date}.csv")
 
-    traffic, plot_date = load_or_aggregate(rawdata, date, config)
-
-    traffic = highfreeflowspeed_conversion(traffic, config)
-    traffic = interpolate_missing(traffic, config)
-    traffic = assign_fixedtime_peaks(traffic, config)
-
-    traffic.to_csv(f"./traffic_{VDS_num}_{file_name}.csv")
-
-    if temporal_scope == 'wholeday':
-        traffic['division'] = 0
-        group_num = len(traffic['division'].unique())
-        
-        tt, demand, avg_flow, div, period, time_duration = compute_metrics(traffic, 0, config, group_num)
-        c_daily_traveltimes.append(tt); c_totaldemand.append(demand); c_avgflow.append(avg_flow)
-        c_date.append(date); c_division.append(div); c_period.append(period)
-        c_dayofweek.append(Day_list[int(rawdata.loc[0, 'time'].weekday())]); c_duration.append(time_duration)
-
-    elif temporal_scope == 'peak':
-        # Speed-based peak detection
+        # speed-based peak detection (if chosen)
         if config['temporal_scale'] == 'speedbasedpeak':
             traffic, peaks = detect_speed_peaks(traffic, date, config)
-            set_peak_period = pd.concat([set_peak_period, pd.DataFrame([{'date': date, 'peak_list': peaks}])], ignore_index=True)
-    
-        # Compute metrics per division
+            set_peak_period = pd.concat(
+                [set_peak_period, pd.DataFrame([{'date': date, 'peak_list': peaks}])],
+                ignore_index=True
+            )
+
         group_num = len(traffic['division'].unique())
-        
+        print(peaks)
         for division_idx, group in traffic.groupby('division'):
-            tt, demand, avg_flow, div, period, time_duration = compute_metrics(group, division_idx, config, group_num)
-            c_daily_traveltimes.append(tt); c_totaldemand.append(demand); c_avgflow.append(avg_flow)
-            c_date.append(date); c_division.append(div); c_period.append(period)
-            c_dayofweek.append(Day_list[int(rawdata.loc[0, 'time'].weekday())]); c_duration.append(time_duration)
+            if division_idx == 0:
+                start_time = '-'
+                end_time ='-'
+            else:
+                start_time = peaks[int(division_idx-1)]['start']
+                end_time = peaks[int(division_idx-1)]['end']
+
+            tt, demand, avg_flow, div, period, dur = compute_metrics(group, division_idx, config, group_num)
+            c_daily_traveltimes.append(tt);  c_totaldemand.append(demand); c_avgflow.append(avg_flow)
+            c_date.append(date);             c_division.append(div);       c_period.append(period)
+            c_dayofweek.append(Day_list[int(rawdata.loc[0, 'time'].weekday())]); 
+            c_duration.append(dur) ; c_start.append(start_time); c_end.append(end_time)
+
+else:
+    # === MULTI-VDS branch ===
+    dates_common, date_to_files = _common_dates_and_files(config)
+    if not dates_common:
+        print("No common dates across VDS_list; nothing to process.")
+    # A label for plots/outputs
+    multi_label = "MULTI_" + "+".join(config['VDS_list'])
+
+    for date in dates_common:
+        # build per-VDS traffic for this date
+        traffic_per_vds = []
+        for vds in config['VDS_list']:
+            print(vds)
+            ## code update필요!!ㅣ
+            cfg_vds  = _make_vds_config(config, vds)
+            base_dir = os.path.join(cfg_vds['path'], '11 Rawdata', cfg_vds['dir'], vds)
+            fname    = date_to_files[date][vds]
+            traffic  = _build_traffic_for_vds(date, fname, cfg_vds, vds)
+            if traffic is None:
+                traffic_per_vds = []  # drop this date if any VDS missing
+                break
+            traffic.to_csv(f"traffic_multi_{vds}_{date}.csv")
+            traffic_per_vds.append(traffic)
+
+        if not traffic_per_vds:
+            continue        
+
+        speedprofile_plot(traffic_per_vds, raw_timeframe, config, date)
+        
+        # # average across VDS at each time_slot
+        traffic_combo = _combine_vds_traffic(traffic_per_vds, config['aggregate_timeframe'])
+        if traffic_combo is None:
+            continue
+
+        # run detection on the combined day (reuse your existing function)
+        temp_cfg = dict(config)
+        temp_cfg['VDS_num'] = multi_label          # for plot filenames
+        # lane_num not needed for compute_metrics in multi_vds fallback path
+        traffic_combo, peaks = detect_speed_peaks(traffic_combo, date, temp_cfg)
+        set_peak_period = pd.concat(
+            [set_peak_period, pd.DataFrame([{'date': date, 'peak_list': peaks}])],
+            ignore_index=True
+        )
+
+        # metrics by division
+        group_num = len(traffic_combo['division'].unique())
+        for division_idx, group in traffic_combo.groupby('division'):
+            if division_idx == 0:
+                start_time = '-'
+                end_time = '-'
+            else:
+                print("peaks",peaks)
+                start_time = peaks[int(division_idx-1)]['start']
+                end_time = peaks[int(division_idx-1)]['end']
+
+            
+            tt, demand, avg_flow, div, period, dur = compute_metrics(group, division_idx, temp_cfg, group_num)
+            c_daily_traveltimes.append(tt);  c_totaldemand.append(demand); c_avgflow.append(avg_flow)
+            c_date.append(date);             c_division.append(div);       c_period.append(period)
+            c_dayofweek.append(_dow_from_yymmdd(date)); 
+            c_duration.append(dur) ; c_start.append(start_time); c_end.append(end_time)
+
+
+# + jupyter={"source_hidden": true}
+# c_daily_flow = []
+# c_daily_traveltimes = []
+# c_date = []
+# c_division = []
+# c_period = []
+# c_dayofweek = []
+# c_totaldemand = []
+# c_avgflow = []
+# c_duration = []
+# c_start = []
+# c_end = []
+# set_peak_period = pd.DataFrame(columns=["date", "peak_list"])
+
+
+# if config.get('spatial_scope','single') == 'single':
+#     # === your existing main loop (unchanged) ===
+#     for file_name in config['file_list']:
+#         print(file_name)
+#         rawdata, gfactor, date = load_raw(file_name, config)
+#         if skip_if_missing(rawdata, config):
+#             continue
+
+#         traffic, plot_date = load_or_aggregate(rawdata, date, config)
+#         # traffic = highfreeflowspeed_conversion(traffic, config)
+#         # traffic = interpolate_missing(traffic, config)
+#         # traffic = assign_fixedtime_peaks(traffic, config)
+
+#         traffic.to_csv(f"traffic_{config['VDS_num']}_{date}.csv")
+
+#         # speed-based peak detection (if chosen)
+#         if config['temporal_scale'] == 'speedbasedpeak':
+#             traffic, peaks = detect_speed_peaks(traffic, date, config)
+#             set_peak_period = pd.concat(
+#                 [set_peak_period, pd.DataFrame([{'date': date, 'peak_list': peaks}])],
+#                 ignore_index=True
+#             )
+
+#         group_num = len(traffic['division'].unique())
+#         print(peaks)
+#         for division_idx, group in traffic.groupby('division'):
+#             if division_idx == 0:
+#                 start_time = '-'
+#                 end_time ='-'
+#             else:
+#                 start_time = peaks[int(division_idx-1)]['start']
+#                 end_time = peaks[int(division_idx-1)]['end']
+
+#             tt, demand, avg_flow, div, period, dur = compute_metrics(group, division_idx, config, group_num)
+#             c_daily_traveltimes.append(tt);  c_totaldemand.append(demand); c_avgflow.append(avg_flow)
+#             c_date.append(date);             c_division.append(div);       c_period.append(period)
+#             c_dayofweek.append(Day_list[int(rawdata.loc[0, 'time'].weekday())]); 
+#             c_duration.append(dur) ; c_start.append(start_time); c_end.append(end_time)
+
+# else:
+#     # === MULTI-VDS branch ===
+#     dates_common, date_to_files = _common_dates_and_files(config)
+#     if not dates_common:
+#         print("No common dates across VDS_list; nothing to process.")
+#     # A label for plots/outputs
+#     multi_label = "MULTI_" + "+".join(config['VDS_list'])
+
+#     for date in dates_common:
+#         # build per-VDS traffic for this date
+#         traffic_per_vds = []
+#         for vds in config['VDS_list']:
+#             cfg_vds  = _make_vds_config(config, vds)
+#             base_dir = os.path.join(cfg_vds['path'], '11 Rawdata', cfg_vds['dir'], vds)
+#             fname    = date_to_files[date][vds]
+#             traffic  = _build_traffic_for_vds(date, fname, cfg_vds)
+#             if traffic is None:
+#                 traffic_per_vds = []  # drop this date if any VDS missing
+#                 break
+#             traffic.to_csv(f"traffic_{vds}_{date}.csv")
+#             traffic_per_vds.append(traffic)
+
+#         if not traffic_per_vds:
+#             continue
+
+#         # average across VDS at each time_slot
+#         traffic_combo = _combine_vds_traffic(traffic_per_vds, config['aggregate_timeframe'])
+#         if traffic_combo is None:
+#             continue
+
+#         # run detection on the combined day (reuse your existing function)
+#         temp_cfg = dict(config)
+#         temp_cfg['VDS_num'] = multi_label          # for plot filenames
+#         # lane_num not needed for compute_metrics in multi_vds fallback path
+#         traffic_combo, peaks = detect_speed_peaks(traffic_combo, date, temp_cfg)
+#         set_peak_period = pd.concat(
+#             [set_peak_period, pd.DataFrame([{'date': date, 'peak_list': peaks}])],
+#             ignore_index=True
+#         )
+
+#         # metrics by division
+#         group_num = len(traffic_combo['division'].unique())
+#         for division_idx, group in traffic_combo.groupby('division'):
+#             if division_idx == 0:
+#                 start_time = '-'
+#                 end_time = '-'
+#             else:
+#                 print("peaks",peaks)
+#                 start_time = peaks[int(division_idx-1)]['start']
+#                 end_time = peaks[int(division_idx-1)]['end']
+
+            
+#             tt, demand, avg_flow, div, period, dur = compute_metrics(group, division_idx, temp_cfg, group_num)
+#             c_daily_traveltimes.append(tt);  c_totaldemand.append(demand); c_avgflow.append(avg_flow)
+#             c_date.append(date);             c_division.append(div);       c_period.append(period)
+#             c_dayofweek.append(_dow_from_yymmdd(date)); 
+#             c_duration.append(dur) ; c_start.append(start_time); c_end.append(end_time)
+
+
 # -
 
 print(set_peak_period)
-set_peak_period.to_csv(f"./{working_f}/set_peak_period_{config['VDS_num']}_{config['aggregate_timeframe']}_{config['speedbased_params']['method']}.csv")
+if config['spatial_scope'] == 'multi_vds':
+    set_peak_period.to_csv(f"./{working_f}/set_peak_period_{config['spatial_scope']}_{config['VDS_list']}_{config['aggregate_timeframe']}_{config['speedbased_params']['method']}.csv")
+else:
+    set_peak_period.to_csv(f"./{working_f}/set_peak_period_{config['VDS_num']}_{config['aggregate_timeframe']}_{config['speedbased_params']['method']}.csv")
 
 # +
-c_daily_traffic = pd.DataFrame({'traveltimes': c_daily_traveltimes, 'totaldemand': c_totaldemand, 'avg_flow': c_avgflow, 'date': c_date, 'dayofweek': c_dayofweek, 'period':c_period, 'duration':c_duration, 'division': c_division })
+c_daily_traffic = pd.DataFrame({'traveltimes': c_daily_traveltimes, 'totaldemand': c_totaldemand, 'avg_flow': c_avgflow, 'date': c_date, 'dayofweek': c_dayofweek, 'period':c_period, 'duration':c_duration, 'start_time': c_start, 'end_time': c_end,'division': c_division })
 
 c_daily_traffic['year'] = c_daily_traffic['date'].astype(int)//10000 + 2000
-c_daily_traffic.to_csv(f"./{working_f}/c_daily_traffic_{config['VDS_num']}_{config['temporal_scale']}_{config['aggregate_timeframe']}_{config['speedbased_params']['method']}_{temporal_scope}.csv")
+
+if config['spatial_scope'] == 'multi_vds':
+    c_daily_traffic.to_csv(f"./{working_f}/c_daily_traffic_{config['spatial_scope']}_{config['VDS_list']}_{config['temporal_scale']}_{config['aggregate_timeframe']}_{config['speedbased_params']['method']}_{temporal_scope}.csv")
+else:
+    c_daily_traffic.to_csv(f"./{working_f}/c_daily_traffic_{config['VDS_num']}_{config['temporal_scale']}_{config['aggregate_timeframe']}_{config['speedbased_params']['method']}_{temporal_scope}.csv")
 
 # +
 ### eliminate days with more than same periods having more than two.
-c_daily_traffic = pd.read_csv(f"./{working_f}/c_daily_traffic_{config['VDS_num']}_{config['temporal_scale']}_{config['aggregate_timeframe']}_{config['speedbased_params']['method']}_{temporal_scope}.csv")
+if config['spatial_scope'] == 'multi_vds':
+    c_daily_traffic=pd.read_csv(f"./{working_f}/c_daily_traffic_{config['spatial_scope']}_{config['VDS_list']}_{config['temporal_scale']}_{config['aggregate_timeframe']}_{config['speedbased_params']['method']}_{temporal_scope}.csv")
+else:
+    c_daily_traffic = pd.read_csv(f"./{working_f}/c_daily_traffic_{config['VDS_num']}_{config['temporal_scale']}_{config['aggregate_timeframe']}_{config['speedbased_params']['method']}_{temporal_scope}.csv")
+
 c_daily_traffic.head()
 
 # Find dates with duplicate periods
@@ -2447,24 +3048,25 @@ print(dup_dates[dup_dates == True])
 valid_dates = dup_dates[~dup_dates].index
 c_daily_traffic_filtered = c_daily_traffic[c_daily_traffic["date"].isin(valid_dates)]
 
-
-
 print("Before:", c_daily_traffic.shape)
 print("After :", c_daily_traffic_filtered.shape)
 
-c_daily_traffic_filtered.to_csv(f"./{working_f}/c_daily_traffic_{config['VDS_num']}_{config['temporal_scale']}_{config['aggregate_timeframe']}_{config['speedbased_params']['method']}_{temporal_scope}_filtered.csv")
+if config['spatial_scope'] == 'multi_vds':
+    c_daily_traffic.to_csv(f"./{working_f}/c_daily_traffic_{config['spatial_scope']}_{config['VDS_list']}_{config['temporal_scale']}_{config['aggregate_timeframe']}_{config['speedbased_params']['method']}_{temporal_scope}_filtered.csv")
+else:
+    c_daily_traffic.to_csv(f"./{working_f}/c_daily_traffic_{config['VDS_num']}_{config['temporal_scale']}_{config['aggregate_timeframe']}_{config['speedbased_params']['method']}_{temporal_scope}_filtered.csv")
 # -
 
 # ### (Code) Result & Analysis: Congestion-based Peak period result
 
-# +
+# + jupyter={"source_hidden": true}
 import pandas as pd
 import ast
 
 temporal_scale = 'speedbasedpeak'
 # VDS: 1203506, 1205583
-VDS_num = '1203506'
-# VDS_num = '1205583'
+# VDS_num = '1203506'
+VDS_num = '1205583'
 # VDS_num = '1214006'
 
 aggregate_timeframe = 5
@@ -2481,7 +3083,7 @@ for method in methods:
     with open(f"./{working_f}/set_peak_period_{VDS_num}_{aggregate_timeframe}_{method}.p",'wb') as file:
         pickle.dump(set_peak_period, file)
 
-# +
+# + jupyter={"source_hidden": true}
 import pandas as pd
 from datetime import datetime
 
@@ -2589,7 +3191,7 @@ print(set_case3)
 
 # #### (Code) Comparison plot
 
-# +
+# + jupyter={"source_hidden": true}
 import random
 # Set the seed
 random.seed(42)  # You can pick any number here
@@ -2647,6 +3249,7 @@ config_v2 = {
     }}
 
 
+# + jupyter={"source_hidden": true}
 def PELT_plot_all(df, date, VDS_num, aggregate_timeframe, peak_list_PELT, peak_list_RDP, peak_list_PELT_direct, purpose):
 # def PELT_plot_all(df, bkpts, date, VDS_num, aggregate_timeframe, peak_list_PELT, method):
     
@@ -2777,6 +3380,8 @@ for i,file_name in enumerate(samples_file_list):
     peak_list_PELT_direct.columns = ['idx','date','peak_list']
 
     PELT_plot_all(traffic, date, VDS_num_analyze, aggregate_timeframe, peak_list_PELT, peak_list_RDP, peak_list_PELT_direct, purpose)
+
+
 # -
 
 # ## BPR calibration result
@@ -2850,20 +3455,16 @@ for i,file_name in enumerate(samples_file_list):
 # - $ln(\frac{z(r)}{\zeta}-1)=ln(\tilde{\alpha})+\beta ln(N)$
 # - $y_n = ln(\tilde{\alpha})+\beta x_n$
 
-# - $\tilde{\alpha}=\frac{\alpha}{(WC)^\beta}= \frac{0.15}{(2*2200)^4}=3.4*10^{-5}$
-#     - $\alpha=0.15, W=2 \text{hours}, C=2200\text{vphpl}, \beta=4$
-# - it is hard to calibrate the $\alpha$, having a positive value.
+#
+# - parameter calibration
+#     -  $\tilde{\alpha}' = ln(\tilde{\alpha})=ln(\frac{\alpha}{(WC)^\beta})$
+#     -  $\alpha = \exp(\tilde{\alpha}')\times (WC)^\beta$
 
 # <img src='./01_BPR/02_1_presentation_fig/BPR_calibration_v2.png' width=70%>
 
+# + [markdown] jp-MarkdownHeadingCollapsed=true
 # ### Version3: inverse natural log of total demand
-
-# - $z(r)=\zeta(1+\alpha r^\beta)$
-# - $z(r)=\zeta[1+\alpha (\frac{q}{WC/T})^\beta]=\zeta(1+\tilde{\alpha} (Tq)^\beta)=\zeta(1+\tilde{\alpha} N^\beta)$
-#     - where $\tilde{\alpha}=\frac{\alpha}{(WC)^\beta}, N = Tq$
-# - $ln(\frac{z(r)}{\zeta}-1)=ln(\tilde{\alpha})+\beta ln(N)$
-# - $-ln(\frac{z(r)}{\zeta}-1)=-ln(\tilde{\alpha})-\beta ln(N)$
-# - $ln((\frac{z(r)}{\zeta}-1)^{-1})=ln(\frac{1}{\tilde{\alpha}})  -\beta ln(N)$
+# -
 
 # - Calibration result
 #     - $\zeta = 1min/mile (60mph)$
@@ -2908,7 +3509,9 @@ for i,file_name in enumerate(samples_file_list):
 
 # <img src='./01_BPR/02_1_presentation_fig/BPR_calibration_v4.png' width=30%>
 
+# + [markdown] jp-MarkdownHeadingCollapsed=true
 # ### Trials for model fitting improvment (e.g., R-squared)
+# -
 
 # #### Measures for model fitting
 
@@ -2970,7 +3573,9 @@ for i,file_name in enumerate(samples_file_list):
 
 # <img src='./01_BPR/02_1_presentation_fig/Freeflow_speed_dist.png' width=90%>
 
+# + [markdown] jp-MarkdownHeadingCollapsed=true
 # ### daily-basis BPR function estimate
+# -
 
 # #### daily average flowrate
 
@@ -3010,7 +3615,380 @@ for i,file_name in enumerate(samples_file_list):
 
 # ### (Code) BPR fitting
 
+# + jupyter={"source_hidden": true}
+def build_file_path(cfg: dict) -> str:
+    if (cfg['spatial_scale'] == "multi_vds"):
+        file_path = f"./01_BPR/c_daily_traffic_multi_vds_{cfg['VDS_list']}_{cfg['temporal_scale']}_{cfg['aggregate_timeframe']}_{cfg['method']}_{cfg['temporal_scope']}_{cfg['version_tag']}.csv"
+    else:
+        file_path = f"./01_BPR/c_daily_traffic_{cfg['VDS_num']}_{cfg['temporal_scale']}_{cfg['aggregate_timeframe']}_{cfg['method']}_{cfg['temporal_scope']}_{cfg['version_tag']}.csv"
+    
+    return file_path
+
+# === Shared utilities ===
+def r2_score(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    ss_res = np.sum((y_true - y_pred)**2)
+    ss_tot = np.sum((y_true - np.mean(y_true))**2)
+    return 1.0 - ss_res/ss_tot if ss_tot > 0 else np.nan
+
+def rmse(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    return float(np.sqrt(np.mean((y_true - y_pred)**2)))
+
+def to_categorical_day(df: pd.DataFrame) -> pd.DataFrame:
+    day_order = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+    if "dayofweek" in df.columns:
+        df["dayofweek"] = pd.Categorical(df["dayofweek"], categories=day_order, ordered=True)
+    return df
+
+# === Load + annotate once ===
+# add columns of revise the format of dataframe
+def load_and_annotate(cfg: dict) -> pd.DataFrame:
+    fp = build_file_path(cfg)
+    df = pd.read_csv(fp)
+    # basic date fields
+    df["date"] = df["date"].astype(str)
+    df["month"] = df["date"].str.slice(0, 4)
+
+    # free-flow travel time
+    ## Divide the mode depending on how day-dependent freeflow-speed or fixed freeflow
+    if cfg["free_tt_mode"] == "by_date_offpeak":
+        off = df[df["period"] == "off-peak"]
+        free_map = off.set_index("date")["traveltimes"].to_dict()
+        df["free_traveltime"] = df["date"].map(free_map)
+    else:
+        df["free_traveltime"] = cfg["free_tt_fixed"]
+
+    # derived logs
+    df["ln_avg_flow"] = np.log(df["avg_flow"])
+    df["ln_totaldemand"] = np.log(df["totaldemand"])
+
+    # ln((z/ζ)-1) using either fixed or date-wise ζ
+    df["ln_t_tau"] = np.log(df["traveltimes"]/df["free_traveltime"] - 1.0)
+
+    # Version 5/6 convenience (Ideal waiting time)
+    W_hour = cfg["W_minutes"]/60.0
+    df["avgdemand"] = np.where(
+        df["division"] == 0, df["totaldemand"], df["totaldemand"]/W_hour
+    )
+
+    return df
+
+# === One place to filter ===
+def apply_filters(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
+    # common: remove division == -1
+    if "division" in df.columns:
+        df = df[df["division"] != -1]
+
+    if cfg["dayofweek_exclude"]:
+        df = df[~df["dayofweek"].isin(cfg["dayofweek_exclude"])]
+    if cfg["month_exclude"]:
+        df = df[~df["month"].isin(cfg["month_exclude"])]
+    if cfg["year_exclude"] and "year" in df.columns:
+        df = df[~df["year"].isin(cfg["year_exclude"])]
+    if cfg["period_include"]:
+        df = df[df["period"].isin(cfg["period_include"])]
+
+    return to_categorical_day(df.copy())
+
+
+# + jupyter={"source_hidden": true}
+# === Linear version registry (V1–V4) ===
+# Each entry returns (x, y, x_label, y_label) for plotting/fit
+# 'Collable' means “a function (or any callable object) that takes arguments of given types and returns the given type.”
+LinearTransform = Callable[[pd.DataFrame], Tuple[np.ndarray, np.ndarray, str, str]]
+
+def v1_lnq_vs_lnttau(g: pd.DataFrame):
+    return (
+        g["ln_avg_flow"].to_numpy(),
+        g["ln_t_tau"].to_numpy(),
+        r"$\ln(q)$",
+        r"$\ln\!\left(\frac{z(r)}{\zeta}-1\right)$",
+    )
+
+def v2_lnN_vs_lnttau(g: pd.DataFrame):
+    return (
+        g["ln_totaldemand"].to_numpy(),
+        g["ln_t_tau"].to_numpy(),
+        r"$\ln(Tq)$",
+        r"$\ln\!\left(\frac{z(r)}{\zeta}-1\right)$",
+    )
+
+def v3_speeddep_lnN_vs_lnttau(g: pd.DataFrame):
+    # identical axes to v3; differs because ζ is date-wise in ln/columns already
+    return v2_lnN_vs_lnttau(g)
+
+LINEAR_REGISTRY: Dict[str, LinearTransform] = {
+    "v1": v1_lnq_vs_lnttau,
+    "v2": v2_lnN_vs_lnttau,
+    "v3": v3_speeddep_lnN_vs_lnttau,
+}
+
+# +
+import math
+
+# === Shared linear plotter ===
+def plot_linear_by_group(
+    df: pd.DataFrame,
+    cfg: dict,
+    version_key: str,
+    xlim: Optional[Tuple[float,float]] = None,
+    ylim: Optional[Tuple[float,float]] = None,
+    title_suffix: str = "",
+    save_name: Optional[str] = None,
+):
+    assert version_key in LINEAR_REGISTRY, "Unknown linear version key."
+    ## version_key에 맞는 함수 정의
+    trans = LINEAR_REGISTRY[version_key]
+    group_key = cfg["label_criterion"]
+    
+    fig, ax = plt.subplots(1, 1, figsize=(8.5, 6))
+    legend_entries = []
+    r2_list = []
+
+    # Get labels once, before loop
+    _, _, xlab, ylab = trans(df)
+    ax.set_xlabel(xlab, fontsize=12)
+    ax.set_ylabel(ylab, fontsize=12)
+    ax.grid(True)
+    
+    # Then loop only for x,y
+    # group_key = "period", "dayofweek", "year", ...
+    for name, grp in df.groupby(group_key):
+        x, y, _, _ = trans(grp)
+        ax.plot(x, y, marker="o", linestyle="", label=str(name))
+        # OLS by np.polyfit
+        b1, b0 = np.polyfit(x, y, 1)  # slope, intercept
+        # smooth line
+        x_line = np.linspace(x.min(), x.max(), 200)
+        y_line = b0 + b1*x_line
+        ax.plot(x_line, y_line, linewidth=2)
+
+        beta = b1
+        alpha = (cfg['W_minutes']/60*cfg['capacity_fixed'])**beta*math.exp(b0)
+
+        r2 = np.corrcoef(x, y)[0, 1]**2 if len(x) > 1 else np.nan
+        legend_entries.append(rf"{name}: y={b0:.3f}+{b1:.3f}x (R²={r2:.3f}), ($\alpha$ = {alpha:.2f},$\beta$ = {beta:.2f})")
+        r2_list.append(r2)    
+    
+    if xlim: ax.set_xlim(*xlim)
+    if ylim: ax.set_ylim(*ylim)
+
+    mean_r2 = np.nanmean(r2_list) if r2_list else np.nan
+    ax.set_title(
+        f"BPR calibration ({version_key.upper()}) at VDS {cfg['VDS_num']} [{cfg['method']}]\n"
+        f"{title_suffix}  |  Avg R²={mean_r2:.3f}"
+    )
+    ax.legend(legend_entries, fontsize=9, loc="best")
+
+    if save_name is None:
+        if cfg['spatial_scale'] == 'multi_vds':
+            save_name = f"{cfg['save_dir']}/BPR_calibration_{cfg['VDS_list']}_{version_key}_{cfg['period_include']}.png"
+        elif cfg['spatial_scale'] == 'single':
+            save_name = f"{cfg['save_dir']}/BPR_calibration_{cfg['VDS_num']}_{version_key}_{cfg['period_include']}.png"
+    plt.savefig(save_name, bbox_inches="tight")
+    plt.close(fig)
+
+
+# +
+# === Nonlinear: V5 (fixed capacity & W, fit a,b) ===
+def model_bpr_avgdemand(x, a, b, free_tt, c_fixed, W_minutes):
+    t0 = free_tt
+    W = W_minutes/60.0
+    return t0 * (1.0 + a * (x/(c_fixed*W))**b)
+
+def run_v5(df: pd.DataFrame, cfg: dict, xlim: list, ylim: list, save_name: Optional[str] = None):
+    group_key = cfg["label_criterion"]
+    c_fixed = cfg["capacity_fixed"]
+    Wm = cfg["W_minutes"]
+
+    fig, ax = plt.subplots(1, 1, figsize=(8.5, 6))
+    legends = []
+
+    for name, grp in df.groupby(group_key):
+        x = grp["totaldemand"].to_numpy()
+        y = grp["traveltimes"].to_numpy()
+
+        # Fit a,b with c,W fixed
+        f = lambda xx, a, b: model_bpr_avgdemand(xx, a, b, cfg['free_tt_fixed'], c_fixed, Wm)
+        popt, _ = curve_fit(f, x, y, p0=[1.0, 1.0], maxfev=10000)
+        a_hat, b_hat = popt
+
+        # Lines & metrics
+        x_fit = np.linspace(0, max(float(x.max()), 1.0), 400)
+        y_fit = model_bpr_avgdemand(x_fit, a_hat, b_hat, cfg['free_tt_fixed'], c_fixed, Wm)
+        y_fit_ideal = model_bpr_avgdemand(x_fit, 0.15, 4, cfg['free_tt_fixed'], c_fixed, Wm)
+# 
+        y_pred = model_bpr_avgdemand(x, a_hat, b_hat, cfg['free_tt_fixed'], c_fixed, Wm)
+        r2 = r2_score(y, y_pred)
+        
+        ax.plot(x, y, marker="o", linestyle="", label=str(name))
+        ax.plot(x_fit, y_fit, linewidth=2)
+        ax.plot(x_fit, y_fit_ideal, linewidth=2)
+
+        legends.append(f"{name}: t=t₀(1+{a_hat:.2f}(x/({c_fixed}·{Wm/60:.2f}))^{b_hat:.2f}), R²={r2:.3f}")
+        legends.append(f"{name}: t=t₀(1+{a_hat:.2f}(x/({c_fixed}·{Wm/60:.2f}))^{b_hat:.2f})")
+
+    if xlim: ax.set_xlim(*xlim)
+    if ylim: ax.set_ylim(*ylim)
+        
+    ax.set_xlabel(r"$N/(W\cdot l)$ (vphpl)", fontsize=12)
+    ax.set_ylabel("Average travel time (min/mile)", fontsize=12)
+    ax.grid(True)
+    ax.set_title(f"BPR calibration (V5) at VDS {cfg['VDS_num']} [{cfg['method']}]", fontsize=12)
+    ax.legend(legends, fontsize=9, loc="best")
+
+    if save_name is None:
+        if cfg['spatial_scale'] == "multi_vds":
+            save_name = f"{cfg['save_dir']}/BPR_calibration_multi_vds_{cfg['VDS_list']}_v5_{cfg['period_include']}_{cfg['year_exclude']}_{cfg['dayofweek_exclude']}.png"
+        else:
+            save_name = f"{cfg['save_dir']}/BPR_calibration_{cfg['VDS_num']}_v5_{cfg['period_include']}_{cfg['year_exclude']}_{cfg['dayofweek_exclude']}.png"
+    
+    plt.savefig(save_name, bbox_inches="tight")
+    plt.close(fig)
+
+
+
+# + jupyter={"source_hidden": true}
+# === Nonlinear: V6 (whole-day weighted ratio) ===
+def compute_v6_wratio_and_avgtt(df: pd.DataFrame, cap: float, beta: float = 4.0) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    For each date, compute:
+      w_tilde = [ sum_i epsilon_i^{beta+1} / w_i^{beta} ]^{-1/beta}
+      w0      = N_total / cap
+      w_ratio = w0 / w_tilde
+    and weighted average travel time.
+    """
+    w_map = {"off-peak": float("inf"), "morning-peak": 1.0, "afternoon-peak": 1.0}
+    wratios, avgtts = [], []
+
+    for date, grp in df.groupby("date"):
+        periods = grp["period"].tolist()
+        w_i = np.array([w_map.get(p, 1.0) for p in periods], dtype=float)
+        N_i = grp["totaldemand"].to_numpy(dtype=float)
+        eps = N_i / (N_i.sum() if N_i.sum() > 0 else 1.0)
+        # Handle inf weights: eps^(b+1)/w^b -> 0 when w=inf
+        term = np.where(np.isinf(w_i), 0.0, (eps**(beta+1))/(w_i**beta))
+        denom = term.sum()
+        if denom <= 0:
+            continue
+        w_tilde = (1.0/denom)**(1.0/beta)
+        w0 = (N_i.sum()/cap) if cap > 0 else np.nan
+        if np.isnan(w0):
+            continue
+        wratios.append(w0/w_tilde)
+        avgtts.append(np.sum(grp["traveltimes"]*eps))
+    return np.array(wratios, float), np.array(avgtts, float)
+
+def model_bpr_wratio(w_ratio, a, b):
+    t0 = 60.0/70.0
+    return t0 * (1.0 + a * (w_ratio**b))
+
+def run_v6(df: pd.DataFrame, cfg: dict, save_name: Optional[str] = None):
+    cap = cfg["capacity_fixed"]
+    w_ratio, avg_tt = compute_v6_wratio_and_avgtt(df, cap=cap, beta=4.0)
+    fig, ax = plt.subplots(1, 1, figsize=(8.0, 6.0))
+
+    ax.plot(w_ratio, avg_tt, marker="o", linestyle="", label="daily points")
+    f = lambda w, a, b: model_bpr_wratio(w, a, b)
+    popt, _ = curve_fit(f, w_ratio, avg_tt, p0=[1.0, 1.0], maxfev=10000)
+    a_hat, b_hat = popt
+
+    x_fit = np.linspace(0, max(float(w_ratio.max()), 1.0), 400)
+    y_fit = model_bpr_wratio(x_fit, a_hat, b_hat)
+    y_pred = model_bpr_wratio(w_ratio, a_hat, b_hat)
+
+    ax.plot(x_fit, y_fit, linewidth=2, label=f"Fit: a={a_hat:.2f}, b={b_hat:.2f}, R²={r2_score(avg_tt, y_pred):.3f}")
+    ax.set_xlabel(r"$N/(lC\tilde{W})$", fontsize=12)
+    ax.set_ylabel("Average travel time (min/mile)", fontsize=12)
+    ax.grid(True)
+    ax.set_title(f"BPR calibration (V6) at VDS {cfg['VDS_num']} [{cfg['method']}]", fontsize=12)
+    ax.legend()
+
+    if save_name is None:
+        if cfg['spatial_scale'] == "multi_vds":
+            save_name = f"{cfg['save_dir']}/BPR_calibration_multi_vds_{cfg['VDS_list']}_v6_{cfg['period_include']}.png"
+        else:
+            save_name = f"{cfg['save_dir']}/BPR_calibration_{cfg['VDS_num']}_v6_{cfg['period_include']}.png"
+            
+    plt.savefig(save_name, bbox_inches="tight")
+    plt.close(fig)
+
+
+# +
+# === Imports ===
+import os
+import math
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+from typing import Callable, Dict, Tuple, Optional
+from scipy.optimize import curve_fit
+
+# === Global style (optional) ===
+plt.rcParams.update({"figure.dpi": 140})
+
+# === Configuration ===
+CONFIG_BPR = {
+    "spatial_scale" : "multi_vds" ,      # "multi_vds", "single"
+    "VDS_list": ['1205583','1214006','1212611','1205572'] ,
+    "VDS_num": 1205583,                    # 1203506, 1205583, 1214006, ...
+    "method": "RDP_v",
+    "temporal_scope": "wholeday",          # "wholeday" or "peak"
+    "version_tag": "filtered",             # "", "filtered"
+    "temporal_scale": "speedbasedpeak",    # used in file name
+    "aggregate_timeframe": 5,              # used in file name (minutes)
+    "label_criterion": "period",           # "period", "dayofweek", "year", ...
+    "period_include": ["morning-peak"],  # subset e.g. ['morning-peak', 'afternoon-peak']
+    "dayofweek_exclude": [],
+    "month_exclude": [],
+    "year_exclude": [],
+    "free_tt_mode": "fixed",               # "fixed" OR "by_date_offpeak"
+    "free_tt_fixed": 60*(1/68),            # minutes/mile when mode=="fixed" (60*1/freeflow_speed)
+    "W_minutes": 90,                      # heart-of-peak window for V5/V6 if needed
+    "capacity_fixed": 1200,                # for V5/V6 where capacity is fixed
+    "save_dir": "./01_BPR/02 fig/12 Daily BPR",               # where to save figures
+}
+
+# Ensure save dir exists
+os.makedirs(CONFIG["save_dir"], exist_ok=True)
+# -
+
+# === Example driver ===
+if __name__ == "__main__":
+    cfg = CONFIG_BPR.copy()
+
+    # 1) Load once, annotate once
+    df_all = load_and_annotate(cfg)
+    
+    # # 1-2) Filter
+    # # df_all = df_all[df_all['duration']> 60]
+    # df_all = df_all[(df_all['ln_t_tau'] < 0.5) | (df_all['ln_totaldemand'] > 7)]
+    
+    # 2) Apply common filters
+    df_use = apply_filters(df_all, cfg)
+
+    # version_key = "v1"
+    xlim = {"v1":[6.5,7.25], "v2": [6,9], "v3": [7,8], "v5":[0,6000]}
+    ylim = {"v1": [-1,2], "v2": [-1,2], "v3": [-2,2], "v5": [1,4]}
+
+    # 3) Linear variants (choose any of 'v1','v2','v3')
+       # Change cfg["free_tt_mode"] to 'by_date_offpeak' for your “speed dependent” ζ
+    # plot_linear_by_group(df_use, cfg, version_key=version_key, xlim= xlim[version_key], ylim=ylim[version_key], title_suffix="[linear ln(q) vs ln((z/ζ)-1)]")
+    # plot_linear_by_group(df_use, cfg, version_key="v2")
+    # For v3, set cfg["free_tt_mode"] = "by_date_offpeak" before load_and_annotate, then:
+    # plot_linear_by_group(df_use, cfg, version_key="v3")
+
+    # 4) Nonlinear versions
+    # V5: capacity & W fixed, fit (a,b)
+    run_v5(df_use, cfg, xlim['v5'], ylim['v5'])
+
+    # V6: whole-day weighting, fit (a,b)
+    # run_v6(df_use, cfg)
+
+df_use[df_use['traveltimes'] > 3]
+
+# + [markdown] jp-MarkdownHeadingCollapsed=true
 # #### (Version1) ln(Avgflow)-ln(traveltimes)
+# -
 
 # - $z(r)=\zeta(1+\alpha r^\beta)$
 # - $z(r)=\zeta[1+\alpha (\frac{q}{WC/T})^\beta]=\zeta(1+\tilde{\alpha} q^\beta)$
@@ -3121,6 +4099,9 @@ plt.savefig(f'./{working_f}/02 fig/12 Daily BPR/BPR_calibration_v1_{VDS_num})_la
 #     - where $\tilde{\alpha}=\frac{\alpha}{(WC)^\beta}, N = Tq$
 # - $ln(\frac{z(r)}{\zeta}-1)=ln(\tilde{\alpha})+\beta ln(N)$
 # - $y_n = ln(\tilde{\alpha})+\beta x_n$
+# - parameter calibration
+#     -  $\tilde{\alpha}' = ln(\tilde{\alpha})=ln(\frac{\alpha}{(WC)^\beta})$
+#     -  $\alpha = \exp(\tilde{\alpha}')\times (WC)^\beta$
 
 # +
 import math
@@ -3546,7 +4527,7 @@ VDS_num = 1203506
 method = 'RDP_v'
 version = 'filtered'
 # 'wholeday', 'peak'
-temporal_scope = 'wholeday'
+temporal_scope = 'peak'
 
 file_path = f"/Users/jooneuihong/Library/CloudStorage/OneDrive-UCIrvine/14 Github/01_BPR/c_daily_traffic_{VDS_num}_{config['temporal_scale']}_{config['aggregate_timeframe']}_{method}_{temporal_scope}_{version}.csv"
 
@@ -3669,8 +4650,8 @@ plt.savefig(f'./{working_f}/02 fig/12 Daily BPR/BPR_calibration_v4_{VDS_num})_la
 #     - VDS_num=1205583: t=t_0 * (1 + 0.86 * (x / 900) ** 1.9), R^2 = 0.832
 #     - VDS_num=1205583: t=t_0 * (1 + 0.54 * (x / 1200) ** 1.13), R^2 = 0.573
 # - A detailed discussion is needed on how to define capacity and interpret the associated parameters.
+# -
 
-# + [markdown] jp-MarkdownHeadingCollapsed=true
 # #### (Version6) Wholeday
 
 # +
@@ -3832,8 +4813,8 @@ ax.grid(True)
 # Save and Display the plot
 plt.savefig(f'./{working_f}/02 fig/12 Daily BPR/BPR_calibration_v6_{VDS_num})_labeled by_{label_criterion}_with_{year_notinclude}{period_include}.png')
 # plt.show()
+# -
 
-# + [markdown] jp-MarkdownHeadingCollapsed=true
 # #### free-flow speed distribution (off-peak)
 
 # +
@@ -3899,6 +4880,8 @@ plt.show()
 # -
 
 # # BPR calibration based on different temporal scales
+
+
 
 # ## Case 1) Entire Day
 
@@ -4194,7 +5177,7 @@ ax.legend(title=f'{label_criterion}')
 # plt.savefig(f'./{working_f}/02 fig/12 Daily/Daily_flow_vs_time_{lane_range}_{dataset_days}({year_range})_labeled by_{label_criterion}.png')
 plt.show()
 
-# + jupyter={"outputs_hidden": true}
+# +
 x = [0, 1.6, 1.7, 0, 0, 0, 0, 3, 3, 3, 3, 3, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 4, 5, 5, 6, 7]
 # peaks, properties = find_peaks(x, distance=5, plateau_size=2)
 
@@ -4202,3 +5185,141 @@ peaks, properties = find_peaks(x,height=2,distance=1)
 # , width=5
 print(peaks)
 print(properties)
+# -
+
+# # Appendix
+
+# - imputation: 5min (30se)
+
+# ## Pipeline Steps with Manual check
+
+#
+# - <img src='./01_BPR/02_1_presentation_fig/2_Data_process_flowchart.png' width=90%>  
+
+# - Discussion about 'capping'
+#     - I capped unrealistic 5-min aggregated speed estimates at 80 mph. Such inflated values can bias average speeds across periods. They may arise from measurement errors or from applying g-factors on an hourly basis, which is a relatively coarse interval. I believe it makes more sense to correct these unrealistic values to a realistic level that still reflects free-flow speeds.
+
+# ### 1. `load_or_aggregate(...)`
+# **Inputs:** rawdata (30-sec), date, config.  
+# **Outputs:** `traffic_within_day` (5-min grid) with per-lane + aggregate metrics.
+#
+# - Converts 30-sec counts → per-lane flows (vph).  
+# - Converts occupancies + gfactor → densities (vpm).  
+# - Speed per lane = flow/density.  
+# - Aggregated traffic states
+#     - Aggregate speed = flow-weighted harmonic mean:  $\bar v = \frac{\sum q_i}{\sum (q_i / v_i)}$
+#     - Aggregate travel time = $60/\bar v$.  
+#     - Aggregate flow = mean(flow across lanes).  
+#     - Aggregate density = $\bar q / \bar v$. 
+# - Also compute CVs across lanes.  
+# - Cached to disk by VDS/date.
+#
+# **Manual check:** `1. (load_or_aggregate) Rawdata_110101.xlsx`<br>
+# Pick one day(e.g. `rawdata_110101.csv`)
+# 1. Compute flow per lane from counts.  
+# 2. Compute density from occupancy+gfactor.  
+# 3. Speed per lane = flow/density.  
+# 4. Verify aggregate speed matches harmonic mean.  
+# 5. Check `time_slot` = midpoint (e.g., 8:02:30 → 482.5).
+#
+# ---
+#
+# ### 2. `highfreeflowspeed_conversion(...)`
+# **Inputs:** aggregated traffic.   `traffic_within_day`<br>
+# **Output:** capped aggregate `speed`.  `traffic_within_day`
+# - If `speed > threshold` (e.g. 80 mph), replace with threshold.
+#
+# **Manual check:**  (e.g. `traffic_within_day_110101.csv`) <br>
+# Scan daily traffic speed pattern before and after: day → no `speed` should exceed threshold.
+#
+# ---
+#
+# ### 3. `interpolate_missing(...)`
+# **Inputs:** aggregated traffic (may have missing slots).  `traffic_within_day` <br>
+# **Output:** full uniform grid, with interpolated rows inserted. `traffic_within_day`
+#
+# - Expected slots = `{a_tf/2, a_tf+ a_tf/2, …, 24*60 - a_tf/2}`.  
+# - For missing slots: interpolate flows & densities linearly.  
+# - Recompute speeds as `flow/density`.  
+#
+# **Manual check:**  (e.g. `traffic_within_day_110101.csv`) <br>
+# - Check for missing time slots.
+# - Verify that each lane’s missing flows and densities are properly interpolated.
+# - Confirm that missing speeds are recalculated as flow ÷ density.
+# - Compute whole-lane average speed using the flow-weighted harmonic mean (Method A).
+# - Compute average flow, density, and speed using averaged flow and density values (Method B).
+# - Ensure the average speeds from Method A and Method B are consistent.
+# ---
+#
+# ### 4. `assign_fixedtime_peaks(...)`
+# **Inputs:** cleaned traffic.  
+# **Output:** detect changepoints: `division` column.
+#
+# - `hour` mode: `division = floor(time_slot/60)`.  
+# - `peak` mode: mark fixed morning/afternoon windows.  
+# - `entireday`: all zeros.  
+# - `speedbasedpeak`: unchanged here (labeling comes later).
+#
+# **Manual check:**  (e.g. `traffic_within_day_110101.csv`) <br>
+# Check a few `time_slot` values vs. config’s windows.
+#
+# ---
+#
+# ### 5. `detect_speed_peaks(...)` (speed-based mode)
+# **Inputs:** traffic after steps 1–3.  
+# **Outputs:**  `traffic['division']` (0 = off-peak, 1,2,... = peaks)/ `peak_list` = list of `{idx, start, end, length}`. <br>
+#
+# - Apply RDP/PELT to find breakpoints.  
+# - For each segment:
+#   - Compute mean speed, segment length.  
+#   - If free-flow-like (long & near freeflow), mark off-peak.  
+#   - Else assign a peak index.  
+# - Construct `peak_list`.  
+# - Plot breakpoints and peaks.
+#
+# **Manual check:**  
+# 1. Confirm breakpoints in plot align with sharp changes.  
+# 2. Compute mean speed per segment manually; check labeling logic.  
+# 3. Confirm `peak_list` times match segment boundaries.
+#
+# ---
+#
+# ### 6. `compute_metrics(...)`
+# **Inputs:** one group (division of traffic).  
+# **Outputs:** traveltime, demand, avg_flow, period, duration.
+#
+# - Flows = group['flow'], Speeds = group['speed'].  
+# - If peak (division != 0):
+#   - Duration = `(len(group)-1) * a_tf`.  
+#   - Demand = $\sum f \cdot (a_{tf}/60)$
+#   - Avg flow = mean(flows).  
+#   - Travel time = $\frac{\sum f/v}{\sum f} \times 60$.  
+#   - Period = morning/afternoon if start slot inside config windows.  
+# - Else (off-peak):
+#   - Duration = `(len(group)+group_num-1) * a_tf`.  
+#   - Same formulas for demand, avg flow, traveltime.
+# - Check if the result is same based on the wholelane's average or individual lane's flows.
+#
+# **Manual check:**  
+# Pick one detected peak group:  
+# 1. Sum flows, compute demand.  
+# 2. Compute flow-weighted travel time.  
+# 3. Confirm duration formula.  
+# 4. Confirm period naming matches config windows.
+#
+# --
+#
+
+# ### Quick Audit Checklist
+# - After Step 1: export CSV, recompute one slot manually.
+#     - '1. (load_or_aggregate) Rawdata_110101.xlsx'
+# - After Step 2: assert no `speed > threshold` 
+# - After Step 3: check full grid present + one interpolation.
+#     - '3,6. Interpolate_missing (avg traffic flow, density cal) traffic_1214006_110101.xlsx' 
+# - After Step 5: check plot + `peak_list`.:
+#     - check the plot 
+# - After Step 6: recompute metrics for one group manually and compare.
+#     - '3,6. Interpolate_missing (avg traffic flow, density cal) traffic_1214006_110101.xlsx'
+#     - when over 80mph cell exists
+#         - 6-1. traffic_1214006_peak,off-peak traffic_by individual lane or entire lane based
+#         - 6-2. traffic_1214006_110111 (verify when the traveltimes are different)
