@@ -3920,7 +3920,7 @@ values=(1/c_daily_traffic['traveltimes'] * 60)
 print(values.mean())
 print(values.median())
 
-# + jupyter={"source_hidden": true, "outputs_hidden": true}
+# + jupyter={"source_hidden": true}
 import matplotlib.pyplot as plt
 
 # Compute transformed values
@@ -5283,7 +5283,7 @@ c_daily_traffic = pd.read_csv(file_path)
 
 print(c_daily_traffic[(c_daily_traffic['flow']<25240/24) & (c_daily_traffic['flow']>25000/24)].sort_values(by='date', ascending=True))
 
-# + jupyter={"outputs_hidden": true}
+# +
 ## "entireday", "peak" "hour" "speedbasedpeak"
 VDS_num = 1203506
 # VDS_num = '1205583'
@@ -5361,7 +5361,7 @@ plt.show()
 #     - why?) Because the congestion period alone doesn’t capture distributional information—like the full-day volume—which is critical for explaining travel times.
 #     - fixed와 unfixed가 근본적인 차이같어. 이와 관련한 이유를 제시해야할 것 같은데?
 
-# + jupyter={"outputs_hidden": true}
+# +
 ## "entireday", "peak" "hour" "speedbasedpeak"
 # VDS_num = 1203506
 VDS_num = '1205583'
@@ -5434,7 +5434,6 @@ plt.show()
 # - <img src='./01_BPR/proj2_Qinlong_2018.png' width=50%>
 # - Figure: Yan et al. (2018)
 
-# + jupyter={"outputs_hidden": true}
 def detect_twopeak(time_frame_peak, time_frame, rawdata, lane_num, gfactor, height, width):
     
     num_frame = time_frame_peak/time_frame
@@ -5462,7 +5461,7 @@ def detect_twopeak(time_frame_peak, time_frame, rawdata, lane_num, gfactor, heig
     return len(peaks)
 
 
-# + jupyter={"outputs_hidden": true}
+# +
 # Detect if the data has two peaks
 two_peak_dates = []
 
@@ -5482,7 +5481,7 @@ for i, file_name in enumerate(file_list):
     if peak_len >= 2:
         two_peak_dates.append(file_name)
 
-# + jupyter={"outputs_hidden": true}
+# +
 # Check the relationship between flow and time for the entire period
 
 # Step 0: Create an empty DataFrame to store daily traffic data and set basic variables
