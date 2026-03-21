@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PeakAtlas California</title>
+    <meta
+      name="description"
+      content="PeakAtlas California is a product website for exploring how traffic peak periods shift across California over time."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="topbar">
+        <div class="brand">
+          <span class="brand-mark">PA</span>
+          <div>
+            <p class="brand-name">PeakAtlas California</p>
+            <p class="brand-subtitle">Traffic peak period intelligence</p>
+          </div>
+        </div>
+        <nav class="topnav">
+          <a href="#product">Product</a>
+          <a href="#explorer">Explorer</a>
+          <a href="#method">Method</a>
+          <a href="#publish">Publish</a>
+        </nav>
+      </header>
+
+      <main>
+        <section class="hero" id="product">
+          <div class="hero-copy">
+            <p class="eyebrow">California-wide peak shift detection</p>
+            <h1>Show how congestion peaks move across the state, not just where traffic exists.</h1>
+            <p class="hero-text">
+              PeakAtlas turns your peak-period research into a shareable public product. Compare AM and
+              PM peaks across years, identify where peak windows shifted earlier or later, and explain
+              how travel behavior changed in California.
+            </p>
+            <div class="hero-actions">
+              <a class="button button-primary" href="#explorer">Explore the demo</a>
+              <a class="button button-secondary" href="#publish">Prepare to publish</a>
+            </div>
+            <ul class="hero-points">
+              <li>Built for researchers, agencies, planners, and public storytelling</li>
+              <li>Designed to grow from a study page into a statewide decision-support product</li>
+              <li>Structured so your real peak-detection outputs can replace the demo values later</li>
+            </ul>
+          </div>
+
+          <div class="hero-panel">
+            <div class="metric-card">
+              <span class="metric-label">Main product promise</span>
+              <strong>Track where California traffic peaks are shifting earlier, later, longer, or flatter.</strong>
+            </div>
+            <div class="mini-grid">
+              <article>
+                <span>Statewide view</span>
+                <strong>Regions and counties</strong>
+              </article>
+              <article>
+                <span>Comparison mode</span>
+                <strong>2019 to 2024</strong>
+              </article>
+              <article>
+                <span>Peak windows</span>
+                <strong>AM and PM</strong>
+              </article>
+              <article>
+                <span>Audience</span>
+                <strong>Research to policy</strong>
+              </article>
+            </div>
+          </div>
+        </section>
+
+        <section class="features">
+          <article class="feature-card feature-card-accent">
+            <p class="section-label">Why it works as a product</p>
+            <h2>It answers a change question.</h2>
+            <p>
+              Most traffic dashboards show congestion today. PeakAtlas shows how peak periods changed
+              across place and time, which is the stronger story for researchers, planners, and agencies.
+            </p>
+          </article>
+          <article class="feature-card">
+            <h3>Before and after comparison</h3>
+            <p>Compare pre-pandemic, pandemic, and recovery years with a clear statewide change narrative.</p>
+          </article>
+          <article class="feature-card">
+            <h3>Peak signatures</h3>
+            <p>Summarize start time, duration, shift direction, and stability for each selected region.</p>
+          </article>
+          <article class="feature-card">
+            <h3>Public-facing storytelling</h3>
+            <p>Translate your study into a website that people can understand quickly and share easily.</p>
+          </article>
+        </section>
+
+        <section class="explorer" id="explorer">
+          <div class="section-header">
+            <p class="section-label">Interactive pilot with real outputs</p>
+            <h2>Peak shift explorer</h2>
+            <p>
+              This section now uses summarized outputs from your actual VDS station files in the workspace.
+              It is still a pilot, but the values are no longer placeholders.
+            </p>
+          </div>
+
+          <div class="region-strip" id="region-strip" aria-label="Quick region picker"></div>
+
+          <div class="explorer-layout">
+            <aside class="control-panel">
+              <label class="field">
+                <span>Station</span>
+                <select id="region-select"></select>
+              </label>
+
+              <label class="field">
+                <span>Year available</span>
+                <select id="year-select"></select>
+                <div class="field-hint">
+                  <span>Source summary</span>
+                  <strong id="year-output">2024</strong>
+                </div>
+              </label>
+
+              <div class="signal-card">
+                <p class="signal-label">Key takeaway</p>
+                <h3 id="headline">PM peak shifts later in Southern California.</h3>
+                <p id="summary">
+                  Orange County shows a longer PM peak window than the baseline year, suggesting a slower
+                  dispersal of evening congestion.
+                </p>
+              </div>
+
+              <div class="quick-stats">
+                <article>
+                  <span>AM coverage</span>
+                  <strong id="shift-magnitude">81%</strong>
+                </article>
+                <article>
+                  <span>PM coverage</span>
+                  <strong id="shift-direction">77%</strong>
+                </article>
+                <article>
+                  <span>Data source</span>
+                  <strong id="story-category">Speed-based peak</strong>
+                </article>
+              </div>
+            </aside>
+
+            <div class="display-panel">
+              <div class="state-card">
+                <div class="state-header">
+                  <div>
+                    <p class="section-label">Selected station</p>
+                    <h3 id="region-name">VDS 1205572</h3>
+                  </div>
+                  <span class="trend-pill" id="trend-pill">Later PM peak</span>
+                </div>
+
+                <div class="state-visual">
+                  <svg viewBox="0 0 280 420" class="california-svg" aria-hidden="true">
+                    <path
+                      d="M80 12L147 44L133 81L158 120L153 173L169 219L152 250L180 296L160 336L173 388L117 404L86 366L83 322L46 275L56 220L32 152L56 100L45 38Z"
+                    />
+                  </svg>
+                  <div class="region-badge" id="region-badge">VDS 1205572</div>
+                </div>
+              </div>
+
+              <div class="map-card">
+                <div class="timeline-header">
+                  <div>
+                    <p class="section-label">Spatial view</p>
+                    <h3>California station map</h3>
+                  </div>
+                  <p id="map-caption">Approximate pilot station placement</p>
+                </div>
+                <div class="map-layout">
+                  <div class="map-stage">
+                    <svg viewBox="0 0 280 420" class="california-svg map-svg" aria-hidden="true">
+                      <path
+                        d="M80 12L147 44L133 81L158 120L153 173L169 219L152 250L180 296L160 336L173 388L117 404L86 366L83 322L46 275L56 220L32 152L56 100L45 38Z"
+                      />
+                    </svg>
+                    <div class="station-markers" id="station-markers" aria-label="Station map markers"></div>
+                  </div>
+                  <div class="map-sidepanel">
+                    <p class="map-note">
+                      This pilot uses approximate marker placement so visitors can understand the product
+                      concept spatially before full county or corridor geometry is added.
+                    </p>
+                    <div class="map-station-list" id="map-station-list"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="metrics-grid">
+                <article class="stat-box">
+                  <span>AM peak start</span>
+                  <strong id="am-start">6:45 AM</strong>
+                </article>
+                <article class="stat-box">
+                  <span>AM peak duration</span>
+                  <strong id="am-duration">2h 05m</strong>
+                </article>
+                <article class="stat-box">
+                  <span>PM peak start</span>
+                  <strong id="pm-start">4:25 PM</strong>
+                </article>
+                <article class="stat-box">
+                  <span>PM peak duration</span>
+                  <strong id="pm-duration">3h 10m</strong>
+                </article>
+              </div>
+
+              <div class="timeline-card">
+                <div class="timeline-header">
+                  <div>
+                    <p class="section-label">Daily shape</p>
+                    <h3>Detected peak fingerprint</h3>
+                  </div>
+                  <p id="timeline-caption">Median daily AM and PM peaks</p>
+                </div>
+
+                <div class="timeline-legend">
+                  <span><i class="legend-line legend-line-baseline"></i>AM peak window</span>
+                  <span><i class="legend-line legend-line-current"></i><span id="legend-year">PM</span> peak window</span>
+                </div>
+
+                <div class="timeline-bars">
+                  <div class="bar-row">
+                    <span>AM</span>
+                    <div class="bar-track">
+                      <div class="bar baseline" id="am-baseline-bar"></div>
+                      <div class="bar current" id="am-current-bar"></div>
+                    </div>
+                  </div>
+                  <div class="bar-row">
+                    <span>PM</span>
+                    <div class="bar-track">
+                      <div class="bar baseline" id="pm-baseline-bar"></div>
+                      <div class="bar current" id="pm-current-bar"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section class="product-columns">
+            <article class="column-card">
+              <p class="section-label">Audience</p>
+              <h3>Who this website can serve first</h3>
+            <ul>
+              <li>Transportation researchers who need a public-facing project showcase</li>
+              <li>Planning agencies that want an intuitive view of peak shifts by geography</li>
+              <li>Media and public users who need a clean explanation of changing travel patterns</li>
+            </ul>
+          </article>
+            <article class="column-card">
+            <p class="section-label">Current data status</p>
+            <h3>What is already connected</h3>
+            <ul>
+              <li>Real station summaries generated from your speed-based peak output files</li>
+              <li>AM and PM median start times and durations by station-year</li>
+              <li>Coverage indicators showing how often peaks were detected</li>
+              <li>A site structure that can accept more stations and years later</li>
+            </ul>
+          </article>
+        </section>
+
+        <section class="method" id="method">
+          <div class="section-header">
+            <p class="section-label">Method framing</p>
+            <h2>How to explain your research on the website</h2>
+            <p>
+              A good product site needs a short, credible explanation of the method. This section gives
+              you a clean structure you can later rewrite with your exact study details.
+            </p>
+          </div>
+
+          <div class="method-grid">
+            <article class="method-card">
+              <span>1</span>
+              <h3>Data input</h3>
+              <p>Traffic observations from your output CSV files are aggregated by station and year to create comparable daily profiles.</p>
+            </article>
+            <article class="method-card">
+              <span>2</span>
+              <h3>Peak detection</h3>
+              <p>Congested segments marked by your speed-based peak method are split into AM and PM windows using their detected start times.</p>
+            </article>
+            <article class="method-card">
+              <span>3</span>
+              <h3>Change metrics</h3>
+              <p>For this pilot, each station-year is summarized with median peak start time, duration, and the share of days with detectable AM and PM peaks.</p>
+            </article>
+            <article class="method-card">
+              <span>4</span>
+              <h3>Public interpretation</h3>
+              <p>The website translates those outputs into intuitive station-level stories now, and can expand to regional change comparisons as more years are added.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="roadmap" id="roadmap">
+          <div class="section-header">
+            <p class="section-label">Step-by-step path</p>
+            <h2>From first website to real product</h2>
+          </div>
+          <div class="roadmap-grid">
+            <article>
+              <span>Step 1</span>
+              <h3>Launch a concept site</h3>
+              <p>Share the problem, the product vision, and a demo of how the experience will work.</p>
+            </article>
+            <article>
+              <span>Step 2</span>
+              <h3>Add your real data</h3>
+              <p>Use the connected station summaries as the first real-data layer in the public website.</p>
+            </article>
+            <article>
+              <span>Step 3</span>
+              <h3>Publish statewide insights</h3>
+              <p>Add more stations and years so the site can show how peaks shift across places and over time.</p>
+            </article>
+            <article>
+              <span>Step 4</span>
+              <h3>Expand into a dashboard</h3>
+              <p>Introduce corridor filters, downloads, and a professional decision-support layer.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="publish" id="publish">
+          <div class="section-header">
+            <p class="section-label">Share the website</p>
+            <h2>Publish-ready structure</h2>
+            <p>
+              This site is static and GitHub Pages friendly. You do not need a framework or backend to
+              publish the first version.
+            </p>
+          </div>
+
+          <div class="publish-grid">
+            <article class="publish-card">
+              <h3>Current files</h3>
+              <ul>
+                <li><code>index.html</code> for the website content and layout</li>
+                <li><code>styles.css</code> for the product-style design system</li>
+                <li><code>site-data.js</code> for generated station summaries</li>
+                <li><code>app.js</code> for the interactive explorer</li>
+                <li><code>README.md</code> for publishing instructions</li>
+              </ul>
+            </article>
+            <article class="publish-card">
+              <h3>What to do next</h3>
+              <ul>
+                <li>Push this folder to a GitHub repository</li>
+                <li>Enable GitHub Pages from the repository settings</li>
+                <li>Share the published link as your project website</li>
+                <li>Iterate by regenerating the station data file when new outputs are available</li>
+              </ul>
+            </article>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="./site-data.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
