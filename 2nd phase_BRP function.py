@@ -8,9 +8,9 @@
 #       format_version: '1.5'
 #       jupytext_version: 1.16.7
 #   kernelspec:
-#     display_name: Python [conda env:base] *
+#     display_name: base
 #     language: python
-#     name: conda-base-py
+#     name: python3
 # ---
 
 # + [markdown] editable=true slideshow={"slide_type": ""}
@@ -51,6 +51,7 @@
 # - Etc
 #     - $d$: Loop detector length(m)
 #     - $l$: The number of lanes
+
 
 # __6/24/2025 Agenda__
 # - PELT method application
@@ -361,7 +362,7 @@ plt.title('BPR vs Triangular F.D.')
 # - $o_{\text{c}} = 0.16$
 
 # <div class="alert alert-info">
-#
+# adfa
 #
 # __Interpreting Ambiguous Segments Using Occupancy-Based Criteria__
 #
@@ -525,10 +526,9 @@ plt.title('BPR vs Triangular F.D.')
 #     - The vertical distance (y-axis difference) is the natural error measure.
 #         - It directly means: “how wrong is my predicted travel time at this specific time?”
 #         - This matches their application: keeping travel times accurate at every time step.
-
-# + [markdown] jp-MarkdownHeadingCollapsed=true
-# #### RDP threshold in this study
 # -
+
+# #### RDP threshold in this study
 
 # ### PELT method
 
@@ -695,7 +695,7 @@ plt.title('BPR vs Triangular F.D.')
 
 # #### Previous discussion but not valid anymore
 
-# + [markdown] editable=true jp-MarkdownHeadingCollapsed=true slideshow={"slide_type": "subslide"}
+# + [markdown] editable=true slideshow={"slide_type": "subslide"}
 # <div class="alert alert-danger">
 # 25/09/02
 #
@@ -748,7 +748,6 @@ plt.title('BPR vs Triangular F.D.')
 #
 # </div>
 
-# + [markdown] jp-MarkdownHeadingCollapsed=true
 # ※ mentioned in DP about the previous study
 # - Lang’s original procedure (1969)
 #     - Start with:
@@ -759,7 +758,6 @@ plt.title('BPR vs Triangular F.D.')
 #         - If not → Anchor moves up to the point before the Floater.
 #     - Problem: The point just before the Floater (e.g., P2 in Fig. 4) may not be the “best” representative.
 #         - It could miss sharp corners because the choice is arbitrary and sequential, not geometric.
-# -
 
 # <div class="alert alert-danger">
 #
@@ -780,7 +778,6 @@ plt.title('BPR vs Triangular F.D.')
 #
 # </div>
 
-# + [markdown] jp-MarkdownHeadingCollapsed=true
 # <div class="alert alert-danger">
 #
 # __Cumulative of Speed-differential profile__
@@ -789,7 +786,6 @@ plt.title('BPR vs Triangular F.D.')
 # - <img src='./01_BPR/02_1_presentation_fig/PELT_speeddiff_penalty_sensitivity analysis.png' width=100%>
 #
 # </div>
-# -
 
 #
 # <div class="alert alert-danger">
@@ -898,8 +894,8 @@ plt.title('BPR vs Triangular F.D.')
 # - simplify the process of threshold setting
 #     - engineering judgement,
 #     - function of the average speed 
+# -
 
-# + [markdown] jp-MarkdownHeadingCollapsed=true
 # <div class="alert alert-danger">
 #
 # __(Methodology) Speed threshold-based__
@@ -917,7 +913,6 @@ plt.title('BPR vs Triangular F.D.')
 # - Non-peak period: The rest of the time within a day
 #     - Average demand: the average traffic flow rate (vph)
 
-# + [markdown] jp-MarkdownHeadingCollapsed=true
 # <div class="alert alert-danger">
 #
 # __(Methodology) Derivative-based Line Segmentation__
@@ -972,8 +967,9 @@ warnings.filterwarnings('ignore')
 
 # + [markdown] editable=true slideshow={"slide_type": ""}
 # #### (Code) Data process
+# - ad
 
-# + tags=["code"] editable=true slideshow={"slide_type": ""}
+# + editable=true slideshow={"slide_type": ""} tags=["code"]
 def rawdata_setting(full_path,VDS_num,file_name,lane_num):
     """
     Upload raw-data and standardize the settings
@@ -2808,7 +2804,7 @@ import pandas as pd
 # =====================
 config = {
     # spatial processing scope
-    'spatial_scope': 'single',            # 'single' or 'multi_vds'
+    'spatial_scope': 'network',            # 'single' or 'multi_vds'
     # 'VDS_list': ['1212611','1205583','1214006'],  #,'1205572','1205541'  # used only when spatial_scope == 'multi_vds'
     # 'VDS_list': ['1203524','1203481'],  #,'1205572','1205541'  # used only when spatial_scope == 'multi_vds'
     # 'VDS_list': ['1212611','1205572','1205583','1214006'],  #,'1205572','1205541'  # used only when spatial_scope == 'multi_vds'
@@ -2838,8 +2834,8 @@ config = {
     'peak_periods': {
         # 'morning': (5.5 * 60, 11 * 60),
         # 'afternoon': (12.5 * 60, 21 * 60)}
-        'morning': (0 * 60, 12 * 60),
-        'afternoon': (12 * 60, 24 * 60)},
+        'morning': (0 * 60, 13 * 60),
+        'afternoon': (13 * 60, 24 * 60)},
     # Speed-based peak |detection parameters
     'speedbased_params': {
         ## joon, pelt, RDP_v, derivative, pelt_directpeak
@@ -2848,10 +2844,13 @@ config = {
         'pelt_min_length': 5,
         'min_off_len': 90,
         'min_peak_len': 0,
-        'speed_upper': 60,
+        'speed_upper': 50,
         # 'freeflow_speed':70,
         # 'freeflow_speed_epsilon':20,
-        'offpeak_ff_speed_threshold': {'1203506': 55, '1203524': 55, '1203481': 55, '1205541': 57, '1212611': 57, '1205572': 57, '1205583': 57, '1214006': 57, 'MULTI_1212611+1205583+1214006': 55,'MULTI_1212611+1205572+1205583+1214006': 55},
+        'offpeak_ff_speed_threshold': {'1203506': 55, '1203524': 55, '1203481': 55, '1205541': 57,
+                               '1212611': 57, '1205572': 57, '1205583': 57, '1214006': 57,
+                               'MULTI_1212611+1205583+1214006': 55, 'MULTI_1212611+1205572+1205583+1214006': 55,
+                               'C1_D1': 50, 'C1_D2': 50, 'C1_BD': 50},  # km/h threshold for C1 network
         'FD_phase': 'three_phases', #two_phases, three_phases,
         # 'offpeak_ff_speed_threshold':50,
         'speed_gap_threshold':15,
@@ -2862,8 +2861,13 @@ config = {
         '1205572': {'occ_l': 0.09, 'occ_h': 0.22},   # appears once only
         '1205583': {'occ_l': 0.095, 'occ_h': 0.14},
         '1214006': {'occ_l': 0.07, 'occ_h': 0.29}},
-        'FD_phase': 'three_phases' #two_phases, three_phases
-    }
+        'FD_phase': 'three_phases', #two_phases, three_phases
+    },
+
+    # --- Network scope keys (used when spatial_scope='network') ---
+    'network_data_path': './01_1_BPR_network/C1data',
+    'network_directions': {1: 'C1_D1', 2: 'C1_D2'},
+    'network_aggregation': 'bidirectional',  # 'directional' (C1_D1/C1_D2) or 'bidirectional' (C1_BD)
 }
 
 # +
@@ -2989,6 +2993,196 @@ def run_multi_vds(cfg, timeframe_min: int, c_lane_num: dict):
     return results_div, results_seg, set_peak_period
 
 
+# -
+
+# ### Network-level C1 pipeline functions
+# Activated when `CONFIG_RC['spatial_scope'] == 'network'`.
+# Produces the same CSV format as `run_single_vds`, keyed by direction ID (`C1_D1` / `C1_D2`).
+
+# +
+# =====================================================================
+# NETWORK-LEVEL C1 PIPELINE  (spatial_scope = 'network')
+# Functions mirror run_single_vds but aggregate across all sections.
+# Run run_network_c1(CONFIG_RC) to generate daily-traffic CSVs, then
+# proceed with run_recurrent_peak_pipeline as usual.
+# =====================================================================
+
+def load_network_c1(cfg):
+    """Load C1 Detector.csv + SectionLength.csv, merge, and clean."""
+    from pathlib import Path
+    data_path = Path(cfg.get('network_data_path', './01_1_BPR_network/C1data'))
+    det = pd.read_csv(data_path / 'Detector.csv', header=None,
+                      names=['route_id','direction','section_id','date',
+                             'interval','volume','speed','occupancy','n_vehicles'])
+    sec = pd.read_csv(data_path / 'SectionLength.csv', header=None,
+                      names=['route_id','direction','section_id','unknown','length_m'])
+    sec['length_km'] = sec['length_m'] / 1000.0
+    det = det.merge(sec[['direction','section_id','length_km']],
+                    on=['direction','section_id'], how='left')
+    det['date'] = pd.to_datetime(det['date'].astype(str), format='%Y%m%d')
+    det['time_slot'] = (det['interval'] - 1) * 5          # minutes from midnight
+    det = det[(det['speed'] > 0) & (det['volume'] >= 0)].dropna(
+          subset=['speed','volume','length_km'])
+    return det
+
+
+def build_network_traffic_day(det_day, date):
+    """
+    Network-level traffic profile for one (direction, date).
+
+    Per 5-min interval j across sections s:
+      v_net(j) = Σ[q_s·ℓ_s] / Σ[q_s·ℓ_s/v_s]   [km/h, VMT-harmonic mean speed]
+      Q_net(j) = Σ[q_s·ℓ_s]                       [veh·km/5min, TTD rate]
+      k_net(j) = Q_net / v_net
+
+    Column names match the traffic DataFrame expected by the existing pipeline:
+      time_slot, time, speed, flow, occ, density
+    """
+    records = []
+    for ts, g in det_day.groupby('time_slot'):
+        vmt = (g['volume'] * g['length_km']).sum()
+        vtt = (g['volume'] * g['length_km'] / g['speed']).sum()
+        if vmt > 0 and vtt > 0:
+            v_net = vmt / vtt          # network space-mean speed [km/h]
+            k_net = vmt / v_net
+        else:
+            v_net = k_net = np.nan
+        records.append({'time_slot': ts,
+                        'speed':   v_net,
+                        'flow':    vmt if not np.isnan(v_net) else np.nan,
+                        'occ':     np.nan,
+                        'density': k_net})
+    df = pd.DataFrame(records).sort_values('time_slot').reset_index(drop=True)
+    df['time'] = pd.Timestamp(date) + pd.to_timedelta(df['time_slot'], unit='m')
+    return df
+
+
+def _wrap_network_cfg_for_detection(cfg):
+    """Bridge flat CONFIG_RC keys → nested speedbased_params for detect_speed_peaks.
+    If cfg already has speedbased_params (config/cell-134 style), return as-is."""
+    if 'speedbased_params' in cfg:
+        return cfg
+    return {
+        **cfg,
+        'speedbased_params': {
+            'method':          cfg.get('method', 'RDP_v'),
+            'congest_method':  cfg.get('congest_method', 'speed-solely'),
+            'pelt_min_length': cfg.get('pelt_min_length', 5),
+            'min_off_len':     cfg.get('min_off_len', 90),
+            'min_peak_len':    cfg.get('min_peak_len', 0),
+            'speed_upper':     cfg.get('speed_upper', 60),
+            'offpeak_ff_speed_threshold': cfg.get('offpeak_ff_speed_threshold', {}),
+            'speed_gap_threshold':       cfg.get('speed_gap_threshold', 15),
+            'occ_threshold':             cfg.get('occ_threshold', {}),
+            'FD_phase':                  cfg.get('FD_phase', 'three_phases'),
+        },
+    }
+
+
+def _save_network_daily_results(cfg, results, criterion):
+    """Save network daily-traffic CSV; path matches build_file_path('network')."""
+    c_daily = pd.DataFrame({
+        'date':        results['date'],
+        'dayofweek':   results['dayofweek'],
+        criterion:     results[criterion],
+        'period':      results['period'],
+        'duration':    results['duration'],
+        'start_time':  results['start'],
+        'end_time':    results['end'],
+        'totaldemand': results['total_demand'],   # TTD [veh·km] over congested period
+        'avg_flow':    results['avg_flow'],        # avg TTD rate [veh·km/5min]
+        'traveltimes': results['traveltime'],      # [min/km] = 60 / v̄_net
+        'avg_speed':   results['avg_speed'],       # [km/h]
+        'avg_density': results['density'],
+        'avg_occ':     results['avg_occ'],
+    })
+    # Support both config styles: flat (CONFIG_RC) and nested (config/cell-134)
+    _sp = cfg.get('speedbased_params', {})
+    _method  = cfg.get('method',        _sp.get('method',        'RDP_v'))
+    _congest = cfg.get('congest_method', _sp.get('congest_method','speed-solely'))
+    path = (f"./01_BPR/c_daily_traffic_{criterion}_network_{cfg['VDS_num']}"
+            f"_{cfg['temporal_scale']}_{cfg['aggregate_timeframe']}"
+            f"_{_method}_{_congest}.csv")
+    c_daily.to_csv(path, index=False)
+    print(f"  -> Saved: {path}")
+
+
+def run_network_c1(cfg):
+    """
+    Full network-level BPR pipeline for C1 (equivalent to run_single_vds).
+
+    Steps:
+      1. load_network_c1        -> per-section detector records
+      2. build_network_traffic_day -> (v_net, Q_net) per 5-min interval
+      3. apply_peak_detection   -> division / segment labels (same RDP_v logic)
+      4. process_daily_traffic  -> demand–traveltime metrics per division
+      5. _save_network_daily_results -> CSV compatible with build_file_path
+
+    cfg: CONFIG_RC or CONFIG_BPR with spatial_scope='network'.
+    """
+    det_all   = load_network_c1(cfg)
+    directions = cfg.get('network_directions', {1: 'C1_D1', 2: 'C1_D2'})
+    Day_list   = cfg.get('Day_list', ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'])
+    empty_res  = lambda crit: {k: [] for k in
+                               ['date', crit, 'period', 'dayofweek', 'duration',
+                                'start', 'end', 'total_demand', 'avg_flow',
+                                'traveltime', 'avg_speed', 'density', 'avg_occ']}
+
+    # Build iteration list: directional (one entry per direction) or
+    # bidirectional (all sections aggregated into a single 'C1_BD' profile).
+    aggregation = cfg.get('network_aggregation', 'directional')
+    if aggregation == 'bidirectional':
+        iter_dirs = [('C1_BD', det_all.copy())]
+    else:
+        iter_dirs = [(dir_id, det_all[det_all['direction'] == direction_int].copy())
+                     for direction_int, dir_id in directions.items()]
+
+    for dir_id, det_dir in iter_dirs:
+        print(f"\n=== C1 {'bidirectional' if aggregation == 'bidirectional' else dir_id} ===")
+        cfg_dir  = {**cfg, 'VDS_num': dir_id, 'Day_list': Day_list}
+        cfg_det  = _wrap_network_cfg_for_detection(cfg_dir)   # adds speedbased_params
+
+        res_div  = empty_res('division')
+        res_seg  = empty_res('segment')
+        peak_recs = []
+
+        for date_ts, day_det in det_dir.groupby('date'):
+            # date_ts: Timestamp (for df['time'] column)
+            # date_str: '%%y%%m%%d' string — matches existing pipeline's date format
+            date_str = date_ts.strftime('%y%m%d')
+            traffic  = build_network_traffic_day(day_det, date_ts)
+
+            miss = traffic['speed'].isna().mean()
+            if miss > cfg_dir.get('missing_ratio', 0.05):
+                print(f"  Skip {date_str}: {miss:.0%%} missing")
+                continue
+
+            if cfg_dir.get('temporal_scale', 'speedbasedpeak') == 'speedbasedpeak':
+                traffic, peaks = apply_peak_detection(traffic, date_str, cfg_det)
+            else:
+                traffic['division'] = 0
+                traffic['segment']  = 0
+                peaks = []
+
+            if peaks:
+                peak_recs.append({'date': date_str, 'peak_list': peaks})
+
+            res_div, res_seg = append_daily_results(
+                traffic, cfg_dir, date_str, traffic, res_div, res_seg)
+            print(f"  {date_str} ok")
+
+        _save_network_daily_results(cfg_dir, res_div, 'division')
+        _save_network_daily_results(cfg_dir, res_seg, 'segment')
+
+        pk_df = (pd.DataFrame(peak_recs) if peak_recs
+                 else pd.DataFrame(columns=['date', 'peak_list']))
+        set_peak_period_save({**cfg_dir, 'spatial_scope': 'single'}, pk_df,
+                             cfg_dir.get('working_f', '01_BPR'))
+
+    print("\nNetwork pipeline complete.")
+
+
+
 # +
 import matplotlib.pyplot as plt
 import numpy as np
@@ -3027,7 +3221,7 @@ def PELT_plot(df, bkpts, date, VDS_num, aggregate_timeframe, peak_list, method, 
     ax1.tick_params(axis='y', colors='#2E7D32')
     
     # Subtle Speed Threshold (e.g., 60mph) for context
-    ax1.axhline(63, color='#D84315', linestyle=':', linewidth=1.5, alpha=0.8)
+    ax1.axhline(50, color='#D84315', linestyle=':', linewidth=1.5, alpha=0.8)
     
     # # 2. Secondary Plot: Cumulative Speed (Right Axis)
     ax2 = ax1.twinx()
@@ -3057,12 +3251,12 @@ def PELT_plot(df, bkpts, date, VDS_num, aggregate_timeframe, peak_list, method, 
             e_total = e_hours + e_minutes/60
             
             # Highlight the congestion zone
-            # ax1.axvspan(s_total, e_total, color='#FF5252', alpha=0.15) 
+            ax1.axvspan(s_total, e_total, color='#FF5252', alpha=0.15) 
             
             # Boundary lines
-            # label = 'Peak periods' if i == 0 else ""
-            # ax1.axvline(x=s_total, color='#D32F2F', linestyle='-', linewidth=2, alpha=0.8, label=label)
-            # ax1.axvline(x=e_total, color='#D32F2F', linestyle='-', linewidth=2, alpha=0.8)
+            label = 'Peak periods' if i == 0 else ""
+            ax1.axvline(x=s_total, color='#D32F2F', linestyle='-', linewidth=2, alpha=0.8, label=label)
+            ax1.axvline(x=e_total, color='#D32F2F', linestyle='-', linewidth=2, alpha=0.8)
 
     # Styling and Legend
     ax1.grid(True, which='both', linestyle='--', linewidth=0.5, alpha=0.4)
@@ -3136,6 +3330,10 @@ elif config['spatial_scope'] == 'multi_vds':
     set_peak_period_save(config, peaks, working_f)
     c_daily_traffic_save(config, div, working_f, "division")
     c_daily_traffic_save(config, seg, working_f, "segment")
+
+# Network-level mode (C1 or similar loop-detector network)
+elif config['spatial_scope'] == 'network':
+    run_network_c1(config)
 # -
 
 
@@ -3563,12 +3761,10 @@ for i,file_name in enumerate(samples_file_list):
 
 # ## Location
 
-# + [markdown] jp-MarkdownHeadingCollapsed=true
 # - VDS1214006: Next to VDS: 1205883 (I-5)
 #     - 2011.Jan~2011.June
 #     - having days with congested period: 
 # - <img src='./01_BPR/02_1_presentation_fig/VDS1205583.png' width=90%>
-# -
 
 # <img src='./01_BPR/02_1_presentation_fig/BPR_1214006.png' width=40%>
 
@@ -3714,7 +3910,6 @@ plt.show()
 #             - $\beta_1$ and $s^2$ are independent when the errors are normal.
 #             - $T=\frac{(\hat{\beta}_1-\beta_1)/(\sigma/\sqrt{S_{xx}})}{\sqrt{[(n-2)s^2/\sigma^2]/(n-2)}}=\frac{\hat{\beta}_1-\beta_1}{s/\sqrt{S_{xx}}} \sim t_{n-2}$ 
 
-# + [markdown] jp-MarkdownHeadingCollapsed=true
 # __Appendix__
 #
 # __Common OLS Diagnostic Test Statistics__
@@ -3735,7 +3930,6 @@ plt.show()
 # - Nonautocorrelation ensures correct inference in time-series data.
 # """)
 #
-# -
 
 # - Multicollinearity assumption summary
 #     - In the multiple regression model: $y_i = \beta_0 + \beta_1 x_{1i} + \beta_2 x_{2i} + \cdots + \beta_k x_{ki} + \varepsilon_i$
@@ -3982,14 +4176,14 @@ def plot_linear_by_group_FD(
     # 1) Transform
     # ----------------------------
     if variable == "qk":
-        X = df_segment['density']
+        X = df_segment['avg_density']
         Y = df_segment['avg_flow']
         Z = X/Y*60
         # Z.to_csv(f"{save_name}_{variable}.csv")
         
     elif variable == "uq":
         X = df_segment['avg_flow']
-        Y = df_segment['traveltimes']
+        Y = df_segment['avg_speed']
         Z = 1/Y*X*60
         # Z.to_csv(f"{save_name}_{variable}.csv")
         
@@ -4116,27 +4310,43 @@ plt.rcParams.update({"figure.dpi": 140})
 
 # === Configuration ===
 CONFIG_FD = {
-    "spatial_scope" : "single" ,      # "multi_vds", "single"
-    "VDS_list": ['1203481','1203506','1214006','1205583','1205572','1212611','1205541'],
-    "VDS_label_list": ['SR-91 WB','SR-91 EB','I-5 SB-1','I-5 SB-2','I-5 SB-3','I-5 SB-4','I-5 SB-5'],
-    # stations = [1203506,1203589,1203615]
-    "VDS_num": '1203481',                # 1203506, 1205583, 1214006, ...1203524, 1203481
-    "temporal_scale": 'speedbasedpeak',    # used in file name "speedbasedpeak", "entireday" "hour"
-    "period_filter": "",  # "morning", "afternoon", ""(entire day)
+    # ── scope: "single", "multi_vds", or "network" (C1) ──────────────────
+    "spatial_scope" : "network",
+
+    # ── Link-level (single / multi_vds) ─────────────────────────────────
+    # "VDS_list": ['1203481','1203506','1214006','1205583','1205572','1212611','1205541'],
+    # "VDS_label_list": ['SR-91 WB','SR-91 EB','I-5 SB-1','I-5 SB-2','I-5 SB-3','I-5 SB-4','I-5 SB-5'],
+
+    # ── Network-level (C1 Inner Circular) ────────────────────────────────
+    # "VDS_list": ['C1_D1', 'C1_D2'],             # directional
+    # "VDS_label_list": ['C1 CCW (Network)', 'C1 CW (Network)'],  # directional
+    "VDS_list": ['C1_BD'],                        # bidirectional
+    "VDS_label_list": ['C1 Bi-directional'],
+    "network_data_path": './01_1_BPR_network/C1data',
+    "network_directions": {1: 'C1_D1', 2: 'C1_D2'},
+    "network_aggregation": "bidirectional",  # "directional" or "bidirectional"
+
+    "VDS_num": 'C1_D1',
+    "temporal_scale": 'speedbasedpeak',    # "speedbasedpeak", "entireday", "hour"
+    "period_filter": "",                   # "morning", "afternoon", or "" (all)
     "method": "RDP_v",
-    # "temporal_scope": "entireday",          # "entireday" or "peak"
-    "aggregate_timeframe": 5,              # used in file name (minutes)
-    "save_dir": "./01_BPR/02 fig/16 FD",               # where to save figures
-    'congest_method':'speed-solely', # speed-duration-only, 'speedgap-neighbor', 'occ', occ-solely
+    "aggregate_timeframe": 5,
+    "save_dir": "./01_BPR/02 fig/16 FD",
+    'congest_method': 'speed-solely',
     'file_path': '/Users/jooneuihong/Library/CloudStorage/OneDrive-UCIrvine/14 Github/01_BPR',
-    #need_to_check if the thresholds are equal to other CONFIG whenever use
-    'offpeak_ff_speed_threshold': {'1203506': 55, '1203524': 55, '1203481': 55, '1205541': 57, '1212611': 57, '1205572': 57, '1205583': 57, '1214006': 57, 'MULTI_1212611+1205583+1214006': 55,'MULTI_1212611+1205572+1205583+1214006': 55},
+    'offpeak_ff_speed_threshold': {
+        '1203506': 55, '1203524': 55, '1203481': 55, '1205541': 57,
+        '1212611': 57, '1205572': 57, '1205583': 57, '1214006': 57,
+        'MULTI_1212611+1205583+1214006': 55, 'MULTI_1212611+1205572+1205583+1214006': 55,
+        'C1_D1': 60, 'C1_D2': 60, 'C1_BD': 50,  # km/h for C1 network
+    },
 }
 
 # Ensure save dir exists
 os.makedirs(CONFIG_FD["save_dir"], exist_ok=True)
 
 # +
+import math
 import os
 import numpy as np
 import pandas as pd
@@ -4160,7 +4370,7 @@ def plot_fd_all_in_one_png(
     vds_ids = cfg["VDS_list"]
     vds_labels = cfg["VDS_label_list"]
     assert len(vds_ids) == len(vds_labels), "VDS_list and VDS_label_list must have same length."
-    assert len(vds_ids) == 7, "This layout expects exactly 7 stations."
+    N = len(vds_ids)
 
     os.makedirs(cfg["save_dir"], exist_ok=True)
 
@@ -4185,6 +4395,7 @@ def plot_fd_all_in_one_png(
         )
 
         df_segment = pd.read_csv(fn_segment)
+        print(df_segment.head())
         df_division = pd.read_csv(fn_division)
 
         # period filter (same logic you already use)
@@ -4221,14 +4432,13 @@ def plot_fd_all_in_one_png(
     # --- 2) stitch them into one PNG ---
     out_png = f"{cfg['save_dir']}/{out_name}_{variable}_{cfg['temporal_scale']}.png"
 
-    fig = plt.figure(figsize=(18, 12), dpi=300)
-    gs = GridSpec(3, 3, figure=fig, wspace=0.04, hspace=0.08)
+    ncols = min(N, 3)
+    nrows = math.ceil(N / ncols)
+    fig = plt.figure(figsize=(6 * ncols, 5 * nrows), dpi=300)
+    gs = GridSpec(nrows, ncols, figure=fig, wspace=0.04, hspace=0.08)
 
-    positions = [
-        (0, 0), (0, 1),          # row 1: 2
-        (1, 0), (1, 1), (1, 2),  # row 2: 3
-        (2, 0), (2, 1)           # row 3: 2
-    ]
+    positions = [(i // ncols, i % ncols) for i in range(N)]
+    used = set(positions)
 
     for path, (r, c) in zip(png_paths, positions):
         ax = fig.add_subplot(gs[r, c])
@@ -4236,9 +4446,11 @@ def plot_fd_all_in_one_png(
         ax.imshow(img)
         ax.axis("off")
 
-    # blank panels
-    fig.add_subplot(gs[0, 2]).axis("off")
-    fig.add_subplot(gs[2, 2]).axis("off")
+    # blank any unused grid cells
+    for r in range(nrows):
+        for c in range(ncols):
+            if (r, c) not in used:
+                fig.add_subplot(gs[r, c]).axis("off")
 
     if variable == "qk":
         var_title = r"$k-q$"
@@ -4269,23 +4481,29 @@ def plot_fd_all_in_one_png(
     print("Saved:", out_png)
     return out_png
 
-# -
 
+# +
 cfg = CONFIG_FD.copy()
+
 plot_fd_all_in_one_png(
     cfg=cfg,
     variable="qk", #"qk" or "uq"
     version_key="v3",
     speed_thre=cfg['offpeak_ff_speed_threshold'],
-    xlim=[0, 100],
-    ylim=[0, 2000],
+    xlim=[0, 400],
+    ylim=[0, 8000],
     title_suffix="",
     out_name="FD_SR91_I5_all"
 )
+# -
+
+
 
 # ## (Code) Recurrent Peak period detection
 
 # +
+# Recurrent detection uses CONFIG_RC below. For simpleband *grid search* helpers shared with BPR, run the BPR section cell that defines load_and_annotate_simpleband / apply_common_filters_simpleband (or rely on functions inside the large `search_simpleband_bpr` cell).
+
 # === Imports ===
 import os
 import math
@@ -4302,15 +4520,53 @@ plt.rcParams.update({"figure.dpi": 140})
 # === Configuration ===
 CONFIG_RC = {
     # 1. Options to choose for every analysis
-    "VDS_list" : ['1203481','1203506','1214006','1205583','1205572','1212611','1205541'],
-    "spatial_scope" : "single" ,      # "multi_vds", "single"
+    # "VDS_list" : ['1203481','1203506','1214006','1205583','1205572','1212611','1205541'],  # link-level
+    # "VDS_list" : ['C1_D1', 'C1_D2'],      # network-level: directional
+    "VDS_list" : ['C1_BD'],                  # network-level: bidirectional
+    "spatial_scope" : "network",      # "single", "multi_vds", "network"
     "working_f": "01_BPR",
+    # --- Network scope (spatial_scope='network') ---
+    "network_data_path": './01_1_BPR_network/C1data',
+    "network_directions": {1: 'C1_D1', 2: 'C1_D2'},   # direction_int -> ID
+    "network_aggregation": "bidirectional",  # "directional" or "bidirectional"
+    "Day_list": ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
+    "missing_ratio": 0.05,
+    "peak_periods": {'morning': (7*60, 12*60), 'afternoon': (12*60, 20*60)},
+    "min_off_len": 90,   "min_peak_len": 0,   "pelt_min_length": 5,
+    "speed_upper": 70,   "speed_gap_threshold": 10,
+    # --- (end network keys) ---
     "temporal_scale": 'speedbasedpeak',    # used in file name "speedbasedpeak", "entireday", "hour", "peakhour"
     
     # 2. Data filter option
     "period_include": {'speedbasedpeak':['morning-peak', 'afternoon-peak'], 'hour': ['off-peak'], 'entireday': ['off-peak']},
     "drop_days_weird_peak_times": True,
     "drop_multiplecongestion_days" : False,
+    "filer_mode": False,
+    "recurrent_method": "shortest_interval",  # "simpleband", "shortest_interval", "PELT"
+    "segment_min_weeks_by_period": {"morning-peak": 2, "afternoon-peak": 2},
+    "recurrent_method_params": {
+        "simpleband": {
+            "selector_by_period": {"morning-peak": "both", "afternoon-peak": "end_only"},
+            "start_bandwidth_minutes_by_period": {"morning-peak": 90, "afternoon-peak": 30},
+            "end_bandwidth_minutes_by_period": {"morning-peak": 180, "afternoon-peak": 90},
+            "start_bound_mode_by_period": {"morning-peak": "two_sided", "afternoon-peak": "two_sided"},
+            "end_bound_mode_by_period": {"morning-peak": "upper_only", "afternoon-peak": "two_sided"}, # upper_only, lower_only, two_sided
+        },
+        "shortest_interval": {
+            "selector_by_period": {"morning-peak": "both", "afternoon-peak": "end_only"},
+            "start_q_by_period": {"morning-peak": 0.90, "afternoon-peak": None},
+            "end_q_by_period": {"morning-peak": 0.95, "afternoon-peak": 0.90},
+            "coverage_by_period": {"morning-peak": None, "afternoon-peak": None},
+            "start_bound_mode_by_period": {"morning-peak": "two_sided", "afternoon-peak": "two_sided"},
+            "end_bound_mode_by_period": {"morning-peak": "two_sided", "afternoon-peak": "two_sided"},
+        },
+        "PELT": {
+            "penalty": 20,
+            "length_threshold": 4,
+            "min_size": 1,
+            "jump": 1,
+        },
+    },
     "morning_earliest": "03:00",
     "afternoon_latest": "22:00",
     "dayofweek_exclude": [],
@@ -4327,432 +4583,975 @@ CONFIG_RC = {
     'file_path': '/Users/jooneuihong/Library/CloudStorage/OneDrive-UCIrvine/14 Github/01_BPR',
     
     # 4. Regression_info & plot
-    "free_tt_offpeak_avg": {'1203481': 60*(1/64), '1203506': 60*(1/(63)), '1214006': 60*(1/(65)),'1205583': 60*(1/(66)),'1205572': 60*(1/(67)), '1212611': 60*(1/(65)),'1205541': 60*(1/(61)),'multi_vds': 60*(1/(64))},   # minutes/mile when mode=="fixed" (60*1/freeflow_speed),
-    # "free_tt_offpeak_avg": {'1203481': 60*(1/61), '1203506': 60*(1/(61)), '1214006': 60*(1/(65)),'1205583': 60*(1/(66)),'1205572': 60*(1/(67)), '1212611': 60*(1/(65)),'1205541': 60*(1/(61)),'multi_vds': 60*(1/(64))},   # minutes/mile when mode=="fixed" (60*1/freeflow_speed),
-    "VDS_label_list" : {'1203481': 'SR-91 WB','1203506': 'SR-91 EB','1214006': 'I-5 SB-1','1205583':'I-5 SB-2','1205572':'I-5 SB-3','1212611':'I-5 SB-4','1205541':'I-5 SB-5'},
-    'free_tt_FD': {'1203506': 60*(1/55), '1203524': 60*(1/55), '1203481': 60*(1/55), '1205541': 60*(1/57), '1212611': 60*(1/57), '1205572': 60*(1/57), '1205583': 60*(1/57), '1214006': 60*(1/57), 'multi_vds': 60*(1/57)},
+    "free_tt_offpeak_avg": {'1203481': 60*(1/64), '1203506': 60*(1/(63)), '1214006': 60*(1/(65)),'1205583': 60*(1/(66)),'1205572': 60*(1/(67)), '1212611': 60*(1/(65)),'1205541': 60*(1/(61)),'multi_vds': 60*(1/(64)),
+                            'C1_D1': 60*(1/65), 'C1_D2': 60*(1/65), 'C1_BD': 60*(1/65)},  # min/km for network
+    # "free_tt_offpeak_avg": {'1203481': 60*(1/61), '1203506': 60*(1/(61)), '1214006': 60*(1/(65)),'1205583': 60*(1/(66)),'1205572': 60*(1/(67)), '1212611': 60*(1/(65)),'1205541': 60*(1/(61)),'multi_vds': 60*(1/(64)),
+                            # 'C1_D1': 60*(1/65), 'C1_D2': 60*(1/65), 'C1_BD': 60*(1/65)},  # min/km for network
+    "VDS_label_list" : {'1203481': 'SR-91 WB','1203506': 'SR-91 EB','1214006': 'I-5 SB-1',
+                    '1205583':'I-5 SB-2','1205572':'I-5 SB-3','1212611':'I-5 SB-4','1205541':'I-5 SB-5',
+                    'C1_D1': 'C1 CCW (Network)', 'C1_D2': 'C1 CW (Network)', 'C1_BD': 'C1 Bi-dir (Network)'},
+    # 'free_tt_FD': {'1203506': 60*(1/55), '1203524': 60*(1/55), '1203481': 60*(1/55), '1205541': 60*(1/57), '1212611': 60*(1/57), '1205572': 60*(1/57), '1205583': 60*(1/57), '1214006': 60*(1/57), 'multi_vds': 60*(1/57)},
 
     "label_criterion": "period",           # "period", "dayofweek", "year", ...
     "W_minutes": 90,                      # heart-of-peak window for V5/V6 if needed
     "capacity_fixed": 1800*24,                # for V5/V6 where capacity is fixed
-    "congest_method":'speed-solely', # speed-duration-only, 'speedgap-neighbor', 'occ', occ-solely,
-    
+    'speedbased_params': {
+        ## joon, pelt, RDP_v, derivative, pelt_directpeak
+        'method': 'RDP_v',
+        'congest_method':'speed-solely', # speed-duration-only, 'speedgap-neighbor', 'occ', occ-solely, speed-solely
+        'pelt_min_length': 5,
+        'min_off_len': 90,
+        'min_peak_len': 0,
+        'speed_upper': 60,
+        # 'freeflow_speed':70,
+        # 'freeflow_speed_epsilon':20,
+        'offpeak_ff_speed_threshold': {'1203506': 55, '1203524': 55, '1203481': 55, '1205541': 57,
+                               '1212611': 57, '1205572': 57, '1205583': 57, '1214006': 57,
+                               'MULTI_1212611+1205583+1214006': 55, 'MULTI_1212611+1205572+1205583+1214006': 55,
+                               'C1_D1': 52, 'C1_D2': 52, 'C1_BD': 52},  # km/h threshold for C1 network
+        'FD_phase': 'three_phases', #two_phases, three_phases,
+        # 'offpeak_ff_speed_threshold':50,
+        'speed_gap_threshold':15,
+            'occ_threshold': {       
+        '1203506': {'occ_l': 0.11, 'occ_h': 0.31},
+        '1205541': {'occ_l': 0.09, 'occ_h': 0.15},
+        '1212611': {'occ_l': 0.11, 'occ_h': 0.24},
+        '1205572': {'occ_l': 0.09, 'occ_h': 0.22},   # appears once only
+        '1205583': {'occ_l': 0.095, 'occ_h': 0.14},
+        '1214006': {'occ_l': 0.07, 'occ_h': 0.29}},
+        'FD_phase': 'three_phases', #two_phases, three_phases
+    },
     "occ_threshold": {       
-        '1203506': {'occ_l': 0.12, 'occ_h': 0.31}, '1205541': {'occ_l': 0.09, 'occ_h': 0.15}, '1212611': {'occ_l': 0.11, 'occ_h': 0.24}, '1205572': {'occ_l': 0.09, 'occ_h': 0.22}},   # appears once only '1205583': {'occ_l': 0.095, 'occ_h': 0.14}, '1214006': {'occ_l': 0.07, 'occ_h': 0.29}},
-    'FD_phase': {'1203506': 'three_phases', '1205541': 'three_phases', '1212611': 'three_phases', '1205572': 'three_phases', '1205583': 'three_phases', '1214006': 'three_phases', 'multi_vds' : 'three_phases'}
+        '1203506': {'occ_l': 0.12, 'occ_h': 0.31}, '1205541': {'occ_l': 0.09, 'occ_h': 0.15},
+        '1212611': {'occ_l': 0.11, 'occ_h': 0.24}, '1205572': {'occ_l': 0.09, 'occ_h': 0.22},
+        'C1_D1': {'occ_l': 0.1, 'occ_h': 0.3}, 'C1_D2': {'occ_l': 0.1, 'occ_h': 0.3}, 'C1_BD': {'occ_l': 0.1, 'occ_h': 0.3}},
+    'FD_phase': {'1203506': 'three_phases', '1205541': 'three_phases', '1212611': 'three_phases',
+              '1205572': 'three_phases', '1205583': 'three_phases', '1214006': 'three_phases',
+              'multi_vds': 'three_phases', 'C1_D1': 'three_phases', 'C1_D2': 'three_phases', 'C1_BD': 'three_phases'}
     }
 
 # Ensure save dir exists
-os.makedirs(CONFIG_BPR["save_dir"], exist_ok=True)
+os.makedirs(CONFIG_RC["save_dir"], exist_ok=True)
+# -
+
+# ### (Code) Simpler version
 
 # +
-# import pandas as pd
-# import numpy as np
-# import ruptures as rpt
-# import matplotlib.pyplot as plt
-# import seaborn as sns
-# import matplotlib.ticker as ticker
-# import copy
 
-# # ------------------------------------------------------------
-# # Helper
-# # ------------------------------------------------------------
-# def time_to_fractional_hour(t_str, default_val=np.nan):
-#     if pd.isna(t_str) or t_str == '-':
-#         return default_val
-#     try:
-#         h, m = map(int, str(t_str).split(':'))
-#         return h + m / 60.0
-#     except Exception:
-#         return default_val
-
-
-# # ------------------------------------------------------------
-# # Build the exact PELT input table for one facet
-# # ------------------------------------------------------------
-# def build_pelt_input(sub_df):
-#     """
-#     sub_df must already be filtered to one facet:
-#     one dayofweek + one period
-#     """
-
-#     sub_df = sub_df.sort_values("week_num").copy()
-
-#     # Manual file uses 1 for peak, -5 for non-peak
-#     sub_df["is_peak"] = np.where(sub_df["start_hour"].isna(), -5, 1)
-
-#     # Fill plotting values within the facet only
-#     sub_df["start_plot"] = sub_df["start_hour"].ffill().bfill()
-#     sub_df["end_plot"]   = sub_df["end_hour"].ffill().bfill()
-
-#     # Keep only exact columns used in manual check
-#     return sub_df[["week_num", "is_peak", "start_plot", "end_plot"]].copy()
-
-
-# # ------------------------------------------------------------
-# # Detect changepoints
-# # ------------------------------------------------------------
-# def detect_multivariate_changepoints(sub_df, pen=20, min_size=1, return_input=False):
-#     """
-#     sub_df: one facet only (same dayofweek + same period)
-#     """
-
-#     pelt_df = build_pelt_input(sub_df)
-
-#     if len(pelt_df) < 10:
-#         if return_input:
-#             return [], pelt_df
-#         return []
-
-#     # Use the exact same variables as the manual input
-#     signal = pelt_df[["is_peak", "start_plot", "end_plot"]].to_numpy()
-
-#     algo = rpt.Pelt(model="l2", min_size=min_size).fit(signal)
-#     cp_indices = algo.predict(pen=pen)
-
-#     # Remove the final endpoint because ruptures always includes n
-#     cp_indices = [i for i in cp_indices if i < len(pelt_df)]
-
-#     # Convert index -> week number
-#     cp_weeks = pelt_df.iloc[np.array(cp_indices) - 1]["week_num"].tolist()
-
-#     if return_input:
-#         return cp_weeks, pelt_df
-
-#     return cp_weeks
-
-
-# # ------------------------------------------------------------
-# # Optional: compare automatic PELT input with manual table
-# # ------------------------------------------------------------
-# def compare_with_manual(auto_df, manual_df, tol=1e-8):
-#     """
-#     manual_df must contain:
-#     is_peak, start_plot, end_plot
-#     """
-
-#     cols = ["is_peak", "start_plot", "end_plot"]
-
-#     if len(auto_df) != len(manual_df):
-#         print(f"Length mismatch: auto={len(auto_df)}, manual={len(manual_df)}")
-#         return False
-
-#     ok = True
-#     for c in cols:
-#         if c == "is_peak":
-#             same = (auto_df[c].to_numpy() == manual_df[c].to_numpy()).all()
-#         else:
-#             same = np.allclose(auto_df[c].to_numpy(), manual_df[c].to_numpy(), atol=tol, equal_nan=True)
-
-#         print(f"{c}: {'MATCH' if same else 'DIFFERENT'}")
-#         if not same:
-#             ok = False
-
-#     if not ok:
-#         diff = pd.concat(
-#             [
-#                 auto_df[cols].reset_index(drop=True).add_prefix("auto_"),
-#                 manual_df[cols].reset_index(drop=True).add_prefix("manual_"),
-#             ],
-#             axis=1
-#         )
-        
-
-#     return ok
-
-
-# # ------------------------------------------------------------
-# # Main loop
-# # ------------------------------------------------------------
-# for vds_id in cfg_master['VDS_list']:
-#     cfg = copy.deepcopy(cfg_master)
-#     cfg["VDS_num"] = vds_id
-#     path = build_file_path(cfg)
-#     df_raw = pd.read_csv(path)
-
-#     # 1. Pre-processing
-#     df_raw['date_dt'] = pd.to_datetime(df_raw['date'], format='%y%m%d')
-#     df_raw['dayofweek'] = df_raw['date_dt'].dt.strftime('%a')
-#     min_date = df_raw['date_dt'].min()
-#     df_raw['week_num'] = ((df_raw['date_dt'] - min_date).dt.days // 7) + 1
-
-#     # 2. Numeric hours
-#     df_raw['start_hour'] = df_raw['start_time'].apply(time_to_fractional_hour)
-#     df_raw['end_hour'] = df_raw['end_time'].apply(time_to_fractional_hour)
-
-#     # 3. Template
-#     all_dates = np.sort(df_raw['date_dt'].unique())
-#     all_periods = ['morning-peak', 'afternoon-peak']
-#     template = pd.MultiIndex.from_product(
-#         [all_dates, all_periods],
-#         names=['date_dt', 'period']
-#     ).to_frame(index=False)
-
-#     df_peaks = pd.merge(template, df_raw, on=['date_dt', 'period'], how='left')
-#     df_peaks['dayofweek'] = df_peaks['date_dt'].dt.strftime('%a')
-#     df_peaks['week_num'] = ((df_peaks['date_dt'] - min_date).dt.days // 7) + 1
-
-#     # sort once
-#     df_peaks = df_peaks.sort_values(['dayofweek', 'period', 'week_num']).copy()
-
-#     # Build columns globally too, for plotting
-#     df_peaks['is_peak'] = np.where(df_peaks['start_hour'].isna(), -5, 1)
-#     df_peaks['start_plot'] = (
-#         df_peaks.groupby(['dayofweek', 'period'])['start_hour']
-#         .transform(lambda x: x)
-#     )
-#     df_peaks['end_plot'] = (
-#         df_peaks.groupby(['dayofweek', 'period'])['end_hour']
-#         .transform(lambda x: x)
-#     )
-
-#     # --------------------------------------------------------
-#     # Visualization
-#     # --------------------------------------------------------
-#     day_order = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-
-#     g = sns.FacetGrid(
-#         df_peaks,
-#         row='dayofweek',
-#         col='period',
-#         row_order=day_order,
-#         col_order=['morning-peak', 'afternoon-peak'],
-#         height=3,
-#         aspect=2.5,
-#         sharex=True,
-#         sharey=False
-#     )
-
-#     g.map_dataframe(
-#         sns.lineplot,
-#         x='week_num',
-#         y='start_plot',
-#         errorbar=None,
-#         color='blue',
-#         alpha=0.3
-#     )
-#     g.map_dataframe(
-#         sns.lineplot,
-#         x='week_num',
-#         y='end_plot',
-#         errorbar=None,
-#         color='red',
-#         alpha=0.3
-#     )
-
-#     for (row_val, col_val), ax in g.axes_dict.items():
-#         facet_data = df_peaks[
-#             (df_peaks['dayofweek'] == row_val) &
-#             (df_peaks['period'] == col_val)
-#         ].sort_values('week_num').copy()
-
-#         cp_weeks, pelt_input = detect_multivariate_changepoints(
-#             facet_data,
-#             pen=20,
-#             min_size=1,
-#             return_input=True
-#         )
-
-#         # print / save the exact PELT input table for checking
-#         print(f"\nVDS={vds_id}, day={row_val}, period={col_val}")
-#         # print(pelt_input[["is_peak", "start_plot", "end_plot"]].to_string(index=False))
-
-#         # optional save
-#         # pelt_input[["is_peak", "start_plot", "end_plot"]].to_csv(
-#         #     f"check_input_{vds_id}_{row_val}_{col_val}.csv", index=False
-#         # )
-
-#         for cp_week in cp_weeks:
-#             ax.axvline(x=cp_week, color='black', linestyle=':', linewidth=2, alpha=0.8)
-
-#         real_peak = facet_data[facet_data['is_peak'] == 1]
-#         non_peak = facet_data[facet_data['is_peak'] == -5]
-
-#         ax.scatter(real_peak['week_num'], real_peak['start_hour'], s=30, color='blue', zorder=4)
-#         ax.scatter(real_peak['week_num'], real_peak['end_hour'], s=30, color='red', zorder=4)
-
-#         baseline = 0 if col_val == 'morning-peak' else 12
-#         ax.scatter(non_peak['week_num'], [baseline] * len(non_peak), color='grey', marker='x', s=40, alpha=0.6)
-
-#         if col_val == 'morning-peak':
-#             ax.set_ylim(-1, 12)
-#         else:
-#             ax.set_ylim(11, 24)
-
-#         ax.yaxis.set_major_locator(ticker.MultipleLocator(3))
-
-#     g.fig.suptitle(f"3D PELT Detection (VDS: {vds_id})", fontsize=16)
-#     plt.subplots_adjust(top=0.9, hspace=0.4)
-#     plt.show()
-
-# +
-import pandas as pd
-import numpy as np
-import ruptures as rpt
-import matplotlib.pyplot as plt
-import seaborn as sns
-import matplotlib.ticker as ticker
 import copy
+from pathlib import Path
 
-# --- Part 1: Improved Detection Function ---
-def detect_multivariate_changepoints(sub_df):
-    """
-    Returns the raw indices of the segment boundaries.
-    """
-    if len(sub_df) < 10:
-        return []
-    
-    # We use 'start_plot', 'end_plot' and 'is_peak' (1 or -5)
-    signal = sub_df[['start_plot', 'end_plot', 'is_peak']].values
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
+import numpy as np
+import pandas as pd
+import seaborn as sns
+from matplotlib.lines import Line2D
 
-    try:
-        # min_size=1 allows the algorithm to catch single-week peaks/outliers
-        algo = rpt.Pelt(model="l2", min_size=1, jump=1).fit(signal)
-        # pen=20 is a robust threshold for 3D signal jumps
-        cp_indices = algo.predict(pen=20)
-        return cp_indices
-    except:
-        return []
 
-# Helper function to convert "HH:MM" to fractional hours
-def time_to_fractional_hour(t_str, default_val):
-    if pd.isna(t_str) or t_str == '-': 
+DAY_ORDER = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+ALL_PERIODS = ['morning-peak', 'afternoon-peak']
+
+
+def time_to_fractional_hour(t_str, default_val=np.nan):
+    if pd.isna(t_str) or t_str == '-':
         return default_val
     try:
         h, m = map(int, str(t_str).split(':'))
-        return h + m/60.0
-    except: 
+        return h + m / 60.0
+    except Exception:
         return default_val
 
-# --- Part 2: Main Processing Loop ---
-all_recurrent_peaks = []
-all_excluded_peaks = []
 
-# Use your existing VDS list from your config
-for vds_id in cfg_master['VDS_list']:
-    cfg = copy.deepcopy(cfg_master)
-    cfg["VDS_num"] = vds_id
-    path = build_file_path(cfg)
-    df_raw = pd.read_csv(path)
-    
-    # 1. Pre-processing raw data
-    df_raw['date_dt'] = pd.to_datetime(df_raw['date'], format='%y%m%d')
+def prepare_peak_table(config_rc, vds_id, all_periods):
+    cfg = copy.deepcopy(config_rc)
+    cfg['VDS_num'] = str(vds_id)
+    df_raw = pd.read_csv(build_file_path(cfg))
+
+    df_raw['date'] = df_raw['date'].astype(str)
+    df_raw['date_dt'] = pd.to_datetime(df_raw['date'], format='%y%m%d', errors='coerce')
     df_raw['dayofweek'] = df_raw['date_dt'].dt.strftime('%a')
     min_date = df_raw['date_dt'].min()
-    df_raw['week_num'] = ((df_raw['date_dt'] - min_date).dt.days // 7) + 1
-    
-    # 2. Calculate Numeric Hours
-    df_raw['start_hour'] = df_raw['start_time'].apply(lambda x: time_to_fractional_hour(x, np.nan))
-    df_raw['end_hour'] = df_raw['end_time'].apply(lambda x: time_to_fractional_hour(x, np.nan))
-    
-    # 3. Create Template and Merge (ensures all weeks are represented)
-    all_dates = df_raw['date_dt'].unique()
-    all_periods = ['morning-peak', 'afternoon-peak']
+
+    df_raw['start_hour'] = df_raw['start_time'].apply(time_to_fractional_hour)
+    df_raw['end_hour'] = df_raw['end_time'].apply(time_to_fractional_hour)
+
+    all_dates = np.sort(df_raw['date_dt'].dropna().unique())
     template = pd.MultiIndex.from_product([all_dates, all_periods], names=['date_dt', 'period']).to_frame(index=False)
-    
-    df_peaks = pd.merge(template, df_raw, on=['date_dt', 'period'], how='left')
+
+    merge_cols = [c for c in df_raw.columns if c not in ['dayofweek']]
+    df_peaks = pd.merge(template, df_raw[merge_cols], on=['date_dt', 'period'], how='left')
     df_peaks['dayofweek'] = df_peaks['date_dt'].dt.strftime('%a')
-    # Duplicate (date_dt, period) keys if df_raw has multiple peaks: keep the row whose
-    # start_hour is closest to the median peak start for that day-of-week and period.
-    _med = df_raw.groupby(['dayofweek', 'period'])['start_hour'].median()
-    _idx = pd.MultiIndex.from_arrays([df_peaks['dayofweek'], df_peaks['period']])
-    df_peaks['_dist'] = (df_peaks['start_hour'] - _med.reindex(_idx).values).abs()
-    df_peaks = (
-        df_peaks.sort_values('_dist', na_position='last')
-        .drop_duplicates(subset=['date_dt', 'period'], keep='first')
-        .drop(columns=['_dist'])
-    )
     df_peaks['week_num'] = ((df_peaks['date_dt'] - min_date).dt.days // 7) + 1
-    df_peaks['vds_id'] = vds_id
+    df_peaks['is_peak'] = np.where(df_peaks['start_hour'].isna() | df_peaks['end_hour'].isna(), -5, 1)
 
-    # 4. Create the 3rd Dimension (is_peak) and Plotting columns
-    df_peaks['is_peak'] = 1
-    non_peak_mask = df_peaks['start_hour'].isna()
-    df_peaks.loc[non_peak_mask, 'is_peak'] = -5
-    
-    df_peaks['start_plot'] = df_peaks['start_hour'].copy()
-    df_peaks['end_plot'] = df_peaks['end_hour'].copy()
+    df_peaks.loc[(df_peaks['is_peak'] == -5) & (df_peaks['period'] == 'morning-peak'), ['start_hour', 'end_hour']] = 0.0
+    df_peaks.loc[(df_peaks['is_peak'] == -5) & (df_peaks['period'] == 'afternoon-peak'), ['start_hour', 'end_hour']] = 12.0
+    df_peaks['vds_id'] = str(vds_id)
+    return df_peaks
 
-    # Set non-peak baselines (0 for morning, 12 for afternoon)
-    df_peaks.loc[non_peak_mask & (df_peaks['period'] == 'morning-peak'), ['start_plot', 'end_plot']] = 0.0
-    df_peaks.loc[non_peak_mask & (df_peaks['period'] == 'afternoon-peak'), ['start_plot', 'end_plot']] = 12.0
 
-    # --- Part 3: Visualization & Segmentation Logic ---
-    length_threshold = 4  # Minimum segment length (weeks)
-    
-    day_order = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-    g = sns.FacetGrid(
-        df_peaks, row='dayofweek', col='period', 
-        row_order=day_order, col_order=['morning-peak', 'afternoon-peak'],
-        height=3, aspect=2.5, sharey=False, sharex=True
-    )
+def _normalize_period_mapping(value, periods=None, default=None):
+    periods = periods or ALL_PERIODS
+    if isinstance(value, dict):
+        return {per: value.get(per, default) for per in periods}
+    return {per: value if value is not None else default for per in periods}
 
-    # Plot the lines (they will "dip" to the baseline now)
-    g.map(sns.lineplot, 'week_num', 'start_plot', color='blue', alpha=0.3, errorbar=None, estimator=None)
-    g.map(sns.lineplot, 'week_num', 'end_plot', color='red', alpha=0.3, errorbar=None, estimator=None)
 
-    for (row_val, col_val), ax in g.axes_dict.items():
-        facet_data = df_peaks[(df_peaks['dayofweek'] == row_val) & 
-                              (df_peaks['period'] == col_val)].sort_values('week_num').copy()
-        
-        # 1. Detect Changepoint Indices
-        cp_indices = detect_multivariate_changepoints(facet_data)
-        
-        # 2. Slice segments and identify Outliers
-        start_idx = 0
-        for end_idx in cp_indices:
-            segment = facet_data.iloc[start_idx:end_idx]
-            
-            # Calculate Segment Duration (Length)
-            segment_length = len(segment)
-            
-            # Recurrence logic: Is this segment long enough AND dense enough?
-            # A segment is "Recurrent" ONLY if it lasts at least 3 weeks
-            # AND it isn't a "Non-Peak" block (recurrence_rate > 0.5)
-            recurrence_rate = (segment['is_peak'] == 1).mean()
-            
-            is_valid_regime = (segment_length >= length_threshold) and (recurrence_rate > 0.5)
-            
-            # Extract actual peak instances
-            seg_peaks = segment[segment['is_peak'] == 1].copy()
-            
-            if is_valid_regime:
-                all_recurrent_peaks.append(seg_peaks)
-            else:
-                # If segment is too short OR is mostly empty, exclude its peaks
-                all_excluded_peaks.append(seg_peaks)
-            
-            # Draw vertical lines for visualization
-            if end_idx < len(facet_data):
-                cp_week = facet_data.iloc[end_idx-1]['week_num']
-                ax.axvline(x=cp_week, color='black', linestyle=':', linewidth=2, alpha=0.8)
-            
-            start_idx = end_idx
+def _period_bounds(period):
+    if period == 'morning-peak':
+        return 0.0, 12.0
+    if period == 'afternoon-peak':
+        return 12.0, 24.0
+    raise ValueError(f'Unknown period: {period}')
 
-        # Overlay scatter points
-        real_peak = facet_data[facet_data['is_peak'] == 1]
-        non_peak = facet_data[facet_data['is_peak'] == -5]
-        
-        ax.scatter(real_peak['week_num'], real_peak['start_hour'], color='blue', s=30, zorder=4)
-        ax.scatter(real_peak['week_num'], real_peak['end_hour'], color='red', s=30, zorder=4)
 
-        # Baseline markers
-        base = 0 if col_val == 'morning-peak' else 12
-        ax.scatter(non_peak['week_num'], [base]*len(non_peak), color='grey', marker='x', s=40, alpha=0.4)
+def _dominant_fixed_band(values, bandwidth_minutes, period):
+    values = pd.Series(values).dropna().astype(float)
+    if len(values) == 0 or bandwidth_minutes is None or pd.isna(bandwidth_minutes):
+        return np.nan, np.nan, None, None
 
-        # Axis Formatting
-        ax.set_ylim(-1, 12) if col_val == 'morning-peak' else ax.set_ylim(11, 24)
-        ax.yaxis.set_major_locator(ticker.MultipleLocator(3))
+    bandwidth = float(bandwidth_minutes) / 60.0
+    period_start, period_end = _period_bounds(period)
+    edges = np.arange(period_start, period_end + bandwidth + 1e-9, bandwidth)
+    if len(edges) < 2:
+        return np.nan, np.nan, None, None
 
-    g.fig.suptitle(f"PELT Segmentation & Outlier Extraction (VDS: {vds_id})", fontsize=16)
-    plt.subplots_adjust(top=0.9, hspace=0.4)
+    counts, bin_edges = np.histogram(values, bins=edges)
+    if len(counts) == 0 or counts.max() <= 0:
+        return np.nan, np.nan, None, counts
+    idx = int(np.argmax(counts))
+    return float(bin_edges[idx]), float(bin_edges[idx + 1]), idx, counts
+
+
+def _build_bound_mask(series, band, mode='two_sided', lower_allowance_minutes=None, upper_allowance_minutes=None, **_ignored):
+    low, high = band
+    if pd.isna(low) or pd.isna(high):
+        return pd.Series(False, index=series.index)
+    mode = mode or 'two_sided'
+    if mode == 'two_sided':
+        return series.between(float(low), float(high), inclusive='left')
+    if mode == 'upper_only':
+        return series <= float(high)
+    if mode == 'lower_only':
+        return series >= float(low)
+    raise ValueError(f'Unknown bound mode: {mode}')
+
+
+def classify_facet_fixed_band(
+    facet_df,
+    period,
+    bandwidth=None,
+    band_rules=None,
+    selector_by_period=None,
+    start_bandwidth_minutes_by_period=None,
+    end_bandwidth_minutes_by_period=None,
+    start_bound_mode_by_period=None,
+    end_bound_mode_by_period=None,
+    **_ignored,
+):
+    out = facet_df.copy()
+    out['recurrent_band'] = False
+    out['excluded_band'] = False
+
+    selector_map = _normalize_period_mapping(selector_by_period or band_rules or {'morning-peak': 'both', 'afternoon-peak': 'both'})
+    if start_bandwidth_minutes_by_period is None:
+        start_bandwidth_minutes_by_period = bandwidth if bandwidth is not None else 30
+    if end_bandwidth_minutes_by_period is None:
+        end_bandwidth_minutes_by_period = bandwidth if bandwidth is not None else 30
+
+    start_bw_map = _normalize_period_mapping(start_bandwidth_minutes_by_period, default=30)
+    end_bw_map = _normalize_period_mapping(end_bandwidth_minutes_by_period, default=30)
+    start_mode_map = _normalize_period_mapping(start_bound_mode_by_period, default='two_sided')
+    end_mode_map = _normalize_period_mapping(end_bound_mode_by_period, default='two_sided')
+
+    rule = selector_map.get(period, 'both')
+    start_bw = start_bw_map.get(period)
+    end_bw = end_bw_map.get(period)
+    start_mode = start_mode_map.get(period, 'two_sided')
+    end_mode = end_mode_map.get(period, 'two_sided')
+
+    peak_mask = (out['is_peak'] == 1) & out['start_hour'].notna() & out['end_hour'].notna()
+    meta = {
+        'rule': rule,
+        'sequence': rule,
+        'start_band': None,
+        'end_band': None,
+        'start_mode': start_mode,
+        'end_mode': end_mode,
+        'start_bandwidth_minutes': start_bw,
+        'end_bandwidth_minutes': end_bw,
+    }
+    if peak_mask.sum() == 0:
+        return out, meta
+
+    def apply_start(mask_source):
+        low, high, idx, counts = _dominant_fixed_band(out.loc[mask_source, 'start_hour'], start_bw, period)
+        mask = _build_bound_mask(out['start_hour'], (low, high), mode=start_mode)
+        return mask, (low, high), idx, counts
+
+    def apply_end(mask_source):
+        low, high, idx, counts = _dominant_fixed_band(out.loc[mask_source, 'end_hour'], end_bw, period)
+        mask = _build_bound_mask(out['end_hour'], (low, high), mode=end_mode)
+        return mask, (low, high), idx, counts
+
+    start_mask, start_band, start_idx, start_counts = apply_start(peak_mask)
+    end_mask, end_band, end_idx, end_counts = apply_end(peak_mask)
+    recurrent_mask = pd.Series(False, index=out.index)
+
+    if rule == 'start_only':
+        recurrent_mask = peak_mask & start_mask
+    elif rule == 'end_only':
+        recurrent_mask = peak_mask & end_mask
+    elif rule == 'both':
+        if period == 'morning-peak':
+            primary_mask = peak_mask & start_mask
+            meta['sequence'] = 'start_then_end'
+            if primary_mask.any():
+                end_mask, end_band, end_idx, end_counts = apply_end(primary_mask)
+                recurrent_mask = primary_mask & end_mask
+        else:
+            primary_mask = peak_mask & end_mask
+            meta['sequence'] = 'end_then_start'
+            if primary_mask.any():
+                start_mask, start_band, start_idx, start_counts = apply_start(primary_mask)
+                recurrent_mask = primary_mask & start_mask
+    else:
+        raise ValueError(f'Unknown selector: {rule}')
+
+    recurrent_mask = recurrent_mask.fillna(False)
+    excluded_mask = peak_mask & ~recurrent_mask
+    out.loc[recurrent_mask, 'recurrent_band'] = True
+    out.loc[excluded_mask, 'excluded_band'] = True
+
+    meta.update({
+        'start_band': start_band,
+        'end_band': end_band,
+        'start_idx': start_idx,
+        'end_idx': end_idx,
+        'start_counts': start_counts,
+        'end_counts': end_counts,
+    })
+    return out, meta
+
+# -
+
+
+
+# +
+
+## Code part for plotting the fixed bands on the facet plot
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+import matplotlib.ticker as ticker
+import numpy as np
+import pandas as pd
+
+
+def draw_fixed_band(ax, meta):
+    handles, labels = [], []
+    rule = meta.get('rule', 'both')
+
+    start_band = meta.get('start_band')
+    end_band = meta.get('end_band')
+
+    if start_band is not None and rule in ['start_only', 'both']:
+        s_low, s_high = start_band
+        if pd.notna(s_low) and pd.notna(s_high):
+            ax.axhspan(s_low, s_high, color='orange', alpha=0.20, zorder=1)
+
+    if end_band is not None and rule in ['end_only', 'both']:
+        e_low, e_high = end_band
+        if pd.notna(e_low) and pd.notna(e_high):
+            ax.axhspan(e_low, e_high, color='orange', alpha=0.20, zorder=1)
+
+    if rule == 'start_only' and start_band is not None:
+        label = 'Start Time Band'
+    elif rule == 'end_only' and end_band is not None:
+        label = 'End Time Band'
+    elif rule == 'both' and (start_band is not None or end_band is not None):
+        label = 'Start/End Time Bands'
+    else:
+        label = None
+
+    if label is not None:
+        handles.append(Line2D([0], [0], color='orange', linewidth=6, alpha=0.2))
+        labels.append(label)
+
+    return handles, labels
+
+
+def annotate_segment_selection_for_plot(df_peaks, cfg, recurrent_col, selected_col='segment_selected'):
+    out = df_peaks.copy()
+    out[selected_col] = False
+
+    if out.empty or recurrent_col not in out.columns:
+        return out
+
+    min_weeks_map = cfg.get('segment_min_weeks_by_period', {'morning-peak': 2, 'afternoon-peak': 2})
+    rec_mask = (out['is_peak'] == 1) & out[recurrent_col].fillna(False)
+    rec_idx = out.index[rec_mask]
+    if len(rec_idx) == 0:
+        return out
+
+    work = out.loc[rec_idx].copy()
+    work = work.sort_values(['dayofweek', 'period', 'week_num', 'date_dt'])
+    work['segment_selected'] = False
+    work['segment_id_plot'] = np.nan
+    work['segment_n_weeks_plot'] = np.nan
+
+    for (day, period), grp in work.groupby(['dayofweek', 'period'], sort=False, dropna=False):
+        grp = grp.sort_values(['week_num', 'date_dt']).copy()
+        grp['segment_id_plot'] = (grp['week_num'].diff().fillna(1).ne(1)).cumsum() + 1
+        seg_sizes = grp.groupby('segment_id_plot')['week_num'].transform('size')
+        grp['segment_n_weeks_plot'] = seg_sizes
+        min_weeks = int(min_weeks_map.get(period, 1))
+        grp['segment_selected'] = seg_sizes >= min_weeks
+        work.loc[grp.index, ['segment_selected', 'segment_id_plot', 'segment_n_weeks_plot']] = grp[['segment_selected', 'segment_id_plot', 'segment_n_weeks_plot']]
+
+    out.loc[work.index, ['segment_selected', 'segment_id_plot', 'segment_n_weeks_plot']] = work[['segment_selected', 'segment_id_plot', 'segment_n_weeks_plot']]
+    return out
+
+
+def plot_common_points(ax, data, recurrent_col, excluded_col, selected_col='segment_selected'):
+    real_p = data[data['is_peak'] == 1]
+    rec_p = real_p[real_p[recurrent_col]]
+    exc_p = real_p[real_p[excluded_col]]
+    non_real_p = data[data['is_peak'] == -5]
+
+    if selected_col in rec_p.columns:
+        rec_selected = rec_p[rec_p[selected_col].fillna(False)]
+        rec_not_selected = rec_p[~rec_p[selected_col].fillna(False)]
+    else:
+        rec_selected = rec_p
+        rec_not_selected = rec_p.iloc[0:0]
+
+    ax.vlines(real_p['week_num'], real_p['start_hour'], real_p['end_hour'], color='lightgrey', alpha=0.8, linewidth=3)
+    ax.scatter(rec_selected['week_num'], rec_selected['start_hour'], color='teal', s=40, zorder=5)
+    ax.scatter(rec_selected['week_num'], rec_selected['end_hour'], color='teal', s=40, zorder=5)
+    ax.scatter(rec_not_selected['week_num'], rec_not_selected['start_hour'], color='darkorange', s=40, zorder=5)
+    ax.scatter(rec_not_selected['week_num'], rec_not_selected['end_hour'], color='darkorange', s=40, zorder=5)
+    ax.scatter(exc_p['week_num'], exc_p['start_hour'], color='crimson', marker='D', s=35, zorder=5)
+    ax.scatter(exc_p['week_num'], exc_p['end_hour'], color='crimson', marker='D', s=35, zorder=5)
+    ax.scatter(non_real_p['week_num'], non_real_p['end_hour'], color='lightgrey', marker='x', s=35, zorder=5)
+
+    handles = [
+        Line2D([0], [0], color='teal', marker='o', linestyle='None', markersize=7, label='Recurrent Peaks (Selected)'),
+        Line2D([0], [0], color='darkorange', marker='o', linestyle='None', markersize=7, label='Recurrent Peaks (Not Selected)'),
+        Line2D([0], [0], color='crimson', marker='D', linestyle='None', markersize=6, label='Non-Recurrent Peaks'),
+        Line2D([0], [0], color='lightgrey', marker='x', linestyle='None', markersize=6, label='No Peak Detected'),
+    ]
+    labels = [h.get_label() for h in handles]
+    return handles, labels
+
+
+def plot_start_end_boxplots(df_peaks, save_path=None, vds_id=None, cfg=None, showfliers=True, figsize=(14, 10)):
+    plot_df = df_peaks[df_peaks['is_peak'] == 1].copy()
+    plot_df['dayofweek'] = pd.Categorical(plot_df['dayofweek'], categories=DAY_ORDER, ordered=True)
+
+    fig, axes = plt.subplots(2, 2, figsize=figsize, sharex=True)
+    hour_types = ['start_hour', 'end_hour']
+    periods = ['morning-peak', 'afternoon-peak']
+
+    for i, hour_col in enumerate(hour_types):
+        for j, period in enumerate(periods):
+            ax = axes[i, j]
+            sub = plot_df[plot_df['period'] == period].copy()
+            sns.boxplot(data=sub, x='dayofweek', y=hour_col, order=DAY_ORDER, ax=ax, showfliers=showfliers)
+            if i == 0:
+                ax.set_title(f"{'Morning' if j == 0 else 'Afternoon'} Peak", fontsize=14, fontweight='bold')
+            ax.set_ylabel('Start Hour' if (j == 0 and i == 0) else ('End Hour' if j == 0 else ''))
+            ax.set_xlabel('Day of Week' if i == 1 else '')
+            ax.set_ylim((-0.5, 13) if period == 'morning-peak' else (11, 25))
+            ax.yaxis.set_major_locator(ticker.MultipleLocator(1))
+
+    fig.suptitle(f"Distribution of Peak Start and End Times by Day of Week (VDS: {cfg['VDS_label_list'][vds_id]})", fontsize=16, y=1.02)
+    plt.tight_layout()
+    if save_path:
+        plt.savefig(save_path, dpi=150, bbox_inches='tight')
     plt.show()
 
-# --- Part 4: Final Export ---
-if all_excluded_peaks:
-    df_excluded = pd.concat(all_excluded_peaks)
-    df_excluded[['vds_id', 'date_dt', 'dayofweek', 'period', 'start_hour', 'end_hour']].to_csv("excluded_non_recurrent_peaks_PELT.csv", index=False)
-    print(f"Exported {len(df_excluded)} outlier instances.")
+
+def _resolve_hist_bin_size(period, bin_size, cfg=None):
+    if isinstance(bin_size, dict):
+        value = bin_size.get(period)
+        return float(value) if value is not None else 0.5
+    if bin_size is not None:
+        return float(bin_size)
+    cfg = cfg or {}
+    params = cfg.get('recurrent_method_params', {}).get('simpleband', {})
+    start_bw = params.get('start_bandwidth_minutes_by_period', {}).get('morning-peak', 30)
+    end_bw = params.get('end_bandwidth_minutes_by_period', {}).get('afternoon-peak', 30)
+    if period == 'morning-peak':
+        return float(start_bw) / 60.0
+    return float(end_bw) / 60.0
+
+
+def plot_start_end_histograms(df_peaks, bin_size=None, save_path=None, vds_id=None, cfg=None, figsize=(14, 20)):
+    plot_df = df_peaks.copy()
+    plot_df['dayofweek'] = pd.Categorical(plot_df['dayofweek'], categories=DAY_ORDER, ordered=True)
+
+    g = sns.FacetGrid(
+        plot_df,
+        row='dayofweek',
+        col='period',
+        col_order=['morning-peak', 'afternoon-peak'],
+        sharey=False,
+        sharex=False,
+        height=2.5,
+        aspect=2.8,
+    )
+
+    def draw_dual_hist(data, **kwargs):
+        if data.empty:
+            return
+        period = data['period'].iloc[0]
+        if period == 'morning-peak':
+            x_range = (0, 12)
+        else:
+            x_range = (12, 24)
+        local_bin_size = _resolve_hist_bin_size(period, bin_size, cfg)
+        bins = np.arange(x_range[0], x_range[1] + local_bin_size, local_bin_size)
+
+        sns.histplot(data=data, x='start_hour', bins=bins, color='#4C72B0', alpha=0.55, label='Start Hour', edgecolor='white', linewidth=0.5)
+        sns.histplot(data=data, x='end_hour', bins=bins, color='#C44E52', alpha=0.55, label='End Hour', edgecolor='white', linewidth=0.5)
+
+        ax = plt.gca()
+        ax.set_xlim(x_range)
+        ax.yaxis.set_major_locator(ticker.MaxNLocator(integer=True))
+        ax.xaxis.set_major_locator(ticker.MultipleLocator(1))
+
+    g.map_dataframe(draw_dual_hist)
+    top_left_ax = g.axes[0, 0]
+    handles, labels = top_left_ax.get_legend_handles_labels()
+    if handles:
+        top_left_ax.legend(handles, labels, fontsize=11, frameon=True, loc='upper right', facecolor='white', framealpha=1)
+
+    g.set_titles(row_template='{row_name}', col_template='{col_name} Peak')
+    g.set_axis_labels('Hour of Day', 'Frequency (Count)')
+    plt.subplots_adjust(top=0.94, hspace=0.4, wspace=0.15)
+    g.fig.suptitle(f"Histogram of Peak Start & End Hours (VDS: {cfg['VDS_label_list'][vds_id]})", fontsize=18, fontweight='bold')
+
+    if save_path:
+        plt.savefig(save_path, dpi=150, bbox_inches='tight')
+    plt.show()
+
+
+
+# -
+
+# ### Network pipeline execution
+# Run **this cell** before `run_recurrent_peak_pipeline` when `spatial_scope='network'`.
+# For link-level (`single`/`multi_vds`), this is a no-op.
+
+# --- Generate daily-traffic CSVs from C1 network data ---
+# Run this cell BEFORE run_recurrent_peak_pipeline when spatial_scope='network'.
+# For single / multi_vds, run_single_vds / run_multi_vds were already executed.
+if CONFIG_RC['spatial_scope'] == 'network':
+    run_network_c1(CONFIG_RC)
+
+
+# +
+def extract_peak_intervals(df_vds, bin_size):
+    """
+    Identifies the most frequent 20-min bin for start and end hours.
+    """
+    results = []
+    day_order = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+    periods = ["morning-peak", "afternoon-peak"]
+    
+    vds_id = df_vds["vds_id"].iloc[0]
+
+    for day in day_order:
+        for per in periods:
+            subset = df_vds[(df_vds["dayofweek"] == day) & (df_vds["period"] == per)]
+            
+            if subset.empty:
+                continue
+
+            row_res = {"vds_id": vds_id, "dayofweek": day, "period": per}
+
+            for col in ["start_hour", "end_hour"]:
+                # 1. Assign each value to a bin start time
+                # Example: 7.15 / 0.333 -> floor(21.47) * 0.333 -> 7.0
+                bins = (subset[col] // bin_size) * bin_size
+                
+                if bins.dropna().empty:
+                    row_res[f"{col}_peak_bin"] = None
+                    continue
+                
+                # 2. Find the most frequent bin start
+                peak_bin_start = bins.mode()[0]
+                peak_bin_end = peak_bin_start + bin_size
+                
+                # 3. Format as "HH:MM-HH:MM"
+                def to_time_str(h):
+                    hour = int(h)
+                    minutes = int(round((h - hour) * 60))
+                    return f"{hour:02d}:{minutes:02d}"
+
+                interval_str = f"{to_time_str(peak_bin_start)}-{to_time_str(peak_bin_end)}"
+                row_res[f"{col}_peak_bin"] = interval_str
+            
+            results.append(row_res)
+            
+    return pd.DataFrame(results)
+
+
+import pandas as pd
+
+def filter_peaks_by_mode_csv(df_peaks, mode_csv_path):
+    """
+    Filters df_peaks using the 'peak_interval_summary_simpleband.csv' file.
+    - Morning peaks: filters by 'start_hour' within the start_hour_peak_bin.
+    - Afternoon peaks: filters by 'end_hour' within the end_hour_peak_bin.
+    """
+    # Load the modes
+    df_modes = pd.read_csv(mode_csv_path)
+    print(df_modes.head())
+    
+    def parse_to_hour(time_str):
+        """Converts 'HH:MM' string to float hour (e.g., '07:20' -> 7.333)."""
+        h, m = map(int, time_str.split(':'))
+        return h + m / 60.0
+
+    def parse_interval(interval_str):
+        """Converts 'HH:MM-HH:MM' to (start_hour, end_hour)."""
+        if pd.isna(interval_str): return None, None
+        s, e = interval_str.split('-')
+        return parse_to_hour(s), parse_to_hour(e)
+
+    filtered_results = []
+
+    # Iterate through each mode row (Location x Day x Period)
+    for _, mode_row in df_modes.iterrows():
+        vds = str(mode_row['vds_id'])
+        day = mode_row['dayofweek']
+        per = mode_row['period']
+        
+        # Identify the target interval from the CSV
+        if per == 'morning-peak':
+            low, high = parse_interval(mode_row['start_hour_peak_bin'])
+            target_col = 'start_hour'
+        else:
+            print("mode_row['end_hour_peak_bin']:", mode_row['end_hour_peak_bin'])
+            low, high = parse_interval(mode_row['end_hour_peak_bin'])
+            target_col = 'end_hour'
+            
+        if low is None: continue
+
+        # Filter the matching group in the main peak dataframe
+        # Use a small epsilon (1e-5) to handle floating point precision
+
+        mask = (
+            (df_peaks['vds_id'] == vds) &
+            (df_peaks['dayofweek'] == day) &
+            (df_peaks['period'] == per) &
+            (df_peaks[target_col] >= low) &
+            (df_peaks[target_col] < high)
+        )
+        
+        print("minmax",df_peaks[mask][target_col].min(),df_peaks[mask][target_col].max())
+        filtered_results.append(df_peaks[mask])
+
+    if not filtered_results:
+        return pd.DataFrame(columns=df_peaks.columns)
+
+    return pd.concat(filtered_results, ignore_index=True)
+
+
+# +
+
+import ruptures as rpt
+from pathlib import Path
+
+
+def normalize_period_mapping(value, periods=None, default=None):
+    return _normalize_period_mapping(value, periods=periods, default=default)
+
+
+def format_pct(value):
+    if value is None or (isinstance(value, float) and np.isnan(value)):
+        return 'na'
+    return f"{int(round(float(value) * 100)):02d}"
+
+
+def shortest_coverage_interval(values, coverage):
+    values = np.sort(pd.Series(values).dropna().astype(float).to_numpy())
+    n = len(values)
+    if n == 0 or coverage is None or pd.isna(coverage):
+        return np.nan, np.nan
+    k = max(1, int(math.ceil(float(coverage) * n)))
+    if k >= n:
+        return float(values[0]), float(values[-1]) + 1e-9
+    best_i, best_width = 0, np.inf
+    for i in range(0, n - k + 1):
+        width = values[i + k - 1] - values[i]
+        if width < best_width:
+            best_width = width
+            best_i = i
+    return float(values[best_i]), float(values[best_i + k - 1]) + 1e-9
+
+
+def build_bound_mask(series, band, mode='two_sided', lower_allowance_minutes=None, upper_allowance_minutes=None, **_ignored):
+    return _build_bound_mask(series, band, mode=mode)
+
+
+def classify_facet_shortest_interval(
+    facet_df,
+    period,
+    selector_by_period=None,
+    start_q_by_period=None,
+    end_q_by_period=None,
+    coverage_by_period=None,
+    start_bound_mode_by_period=None,
+    end_bound_mode_by_period=None,
+    **_ignored,
+):
+    out = facet_df.copy()
+    out['recurrent_band'] = False
+    out['excluded_band'] = False
+
+    selector_map = normalize_period_mapping(selector_by_period or {'morning-peak': 'both', 'afternoon-peak': 'both'})
+    coverage_map = normalize_period_mapping(coverage_by_period, default=None)
+    start_q_map = normalize_period_mapping(start_q_by_period, default=None)
+    end_q_map = normalize_period_mapping(end_q_by_period, default=None)
+    start_mode_map = normalize_period_mapping(start_bound_mode_by_period, default='two_sided')
+    end_mode_map = normalize_period_mapping(end_bound_mode_by_period, default='two_sided')
+
+    rule = selector_map.get(period, 'both')
+    start_q = start_q_map.get(period)
+    end_q = end_q_map.get(period)
+    if start_q is None:
+        start_q = coverage_map.get(period)
+    if end_q is None:
+        end_q = coverage_map.get(period)
+    start_mode = start_mode_map.get(period, 'two_sided')
+    end_mode = end_mode_map.get(period, 'two_sided')
+
+    peak_mask = (out['is_peak'] == 1) & out['start_hour'].notna() & out['end_hour'].notna()
+    meta = {
+        'rule': rule,
+        'sequence': rule,
+        'start_band': None,
+        'end_band': None,
+        'start_mode': start_mode,
+        'end_mode': end_mode,
+        'start_q': start_q,
+        'end_q': end_q,
+    }
+    if peak_mask.sum() == 0:
+        return out, meta
+
+    def apply_start(mask_source):
+        low, high = shortest_coverage_interval(out.loc[mask_source, 'start_hour'], start_q)
+        mask = build_bound_mask(out['start_hour'], (low, high), mode=start_mode)
+        return mask, (low, high)
+
+    def apply_end(mask_source):
+        low, high = shortest_coverage_interval(out.loc[mask_source, 'end_hour'], end_q)
+        mask = build_bound_mask(out['end_hour'], (low, high), mode=end_mode)
+        return mask, (low, high)
+
+    start_mask, start_band = apply_start(peak_mask)
+    end_mask, end_band = apply_end(peak_mask)
+    recurrent_mask = pd.Series(False, index=out.index)
+
+    if rule == 'start_only':
+        recurrent_mask = peak_mask & start_mask
+    elif rule == 'end_only':
+        recurrent_mask = peak_mask & end_mask
+    elif rule == 'both':
+        if period == 'morning-peak':
+            primary_mask = peak_mask & start_mask
+            meta['sequence'] = 'start_then_end'
+            if primary_mask.any():
+                end_mask, end_band = apply_end(primary_mask)
+                recurrent_mask = primary_mask & end_mask
+        else:
+            primary_mask = peak_mask & end_mask
+            meta['sequence'] = 'end_then_start'
+            if primary_mask.any():
+                start_mask, start_band = apply_start(primary_mask)
+                recurrent_mask = primary_mask & start_mask
+    else:
+        raise ValueError(f'Unknown selector: {rule}')
+
+    recurrent_mask = recurrent_mask.fillna(False)
+    excluded_mask = peak_mask & ~recurrent_mask
+    out.loc[recurrent_mask, 'recurrent_band'] = True
+    out.loc[excluded_mask, 'excluded_band'] = True
+
+    meta.update({'start_band': start_band, 'end_band': end_band})
+    return out, meta
+
+
+def _period_tag(period):
+    return 'morning' if period == 'morning-peak' else 'afternoon'
+
+
+def _selector_short(selector):
+    return {'start_only': 's', 'end_only': 'e', 'both': 'b'}.get(selector, str(selector)[0])
+
+
+def build_recurrent_output_tag(config_rc):
+    method = config_rc.get('recurrent_method', 'simpleband')
+    params = config_rc.get('recurrent_method_params', {}).get(method, {})
+    if method == 'simpleband':
+        selector = normalize_period_mapping(params.get('selector_by_period', {'morning-peak': 'both', 'afternoon-peak': 'both'}))
+        start_bw = normalize_period_mapping(params.get('start_bandwidth_minutes_by_period', 30), default=30)
+        end_bw = normalize_period_mapping(params.get('end_bandwidth_minutes_by_period', 30), default=30)
+        start_mode = normalize_period_mapping(params.get('start_bound_mode_by_period', 'two_sided'), default='two_sided')
+        end_mode = normalize_period_mapping(params.get('end_bound_mode_by_period', 'two_sided'), default='two_sided')
+        parts = ['simpleband']
+        for per in ALL_PERIODS:
+            tag = _period_tag(per)
+            sel = selector.get(per)
+            if sel == 'start_only':
+                parts.append(f"{tag}_start{int(start_bw.get(per))}_{start_mode.get(per)}")
+            elif sel == 'end_only':
+                parts.append(f"{tag}_end{int(end_bw.get(per))}_{end_mode.get(per)}")
+            elif sel == 'both':
+                parts.append(f"{tag}_both_s{int(start_bw.get(per))}_{start_mode.get(per)}_e{int(end_bw.get(per))}_{end_mode.get(per)}")
+            else:
+                parts.append(f"{tag}_{sel}")
+        return '_'.join(parts)
+    if method == 'shortest_interval':
+        selector = normalize_period_mapping(params.get('selector_by_period', {'morning-peak': 'both', 'afternoon-peak': 'both'}))
+        start_q = normalize_period_mapping(params.get('start_q_by_period', None), default=None)
+        end_q = normalize_period_mapping(params.get('end_q_by_period', None), default=None)
+        coverage = normalize_period_mapping(params.get('coverage_by_period', None), default=None)
+        start_mode = normalize_period_mapping(params.get('start_bound_mode_by_period', 'two_sided'), default='two_sided')
+        end_mode = normalize_period_mapping(params.get('end_bound_mode_by_period', 'two_sided'), default='two_sided')
+        parts = ['shortestinterval']
+        for per in ALL_PERIODS:
+            tag = _period_tag(per)
+            sel = selector.get(per)
+            sq = start_q.get(per) if start_q.get(per) is not None else coverage.get(per)
+            eq = end_q.get(per) if end_q.get(per) is not None else coverage.get(per)
+            if sel == 'start_only':
+                parts.append(f"{tag}_start{format_pct(sq)}_{start_mode.get(per)}")
+            elif sel == 'end_only':
+                parts.append(f"{tag}_end{format_pct(eq)}_{end_mode.get(per)}")
+            elif sel == 'both':
+                parts.append(f"{tag}_both_s{format_pct(sq)}_{start_mode.get(per)}_e{format_pct(eq)}_{end_mode.get(per)}")
+            else:
+                parts.append(f"{tag}_{sel}")
+        return '_'.join(parts)
+    if method == 'PELT':
+        p = params.get('penalty', 20)
+        l = params.get('length_threshold', 4)
+        return f'PELT_pen{p}_len{l}'
+    return str(method)
+
+
+def _build_simpleband_plot_name(vds_id, config_rc):
+    params = config_rc.get('recurrent_method_params', {}).get('simpleband', {})
+    start_bw = normalize_period_mapping(params.get('start_bandwidth_minutes_by_period', 30), default=30)
+    end_bw = normalize_period_mapping(params.get('end_bandwidth_minutes_by_period', 30), default=30)
+    selector = normalize_period_mapping(params.get('selector_by_period', {'morning-peak': 'both', 'afternoon-peak': 'both'}))
+    bw_vals = [v for v in list(start_bw.values()) + list(end_bw.values()) if v is not None]
+    bw = int(max(bw_vals)) if bw_vals else 30
+    suffix = ''.join(_selector_short(selector[p]) for p in ALL_PERIODS)
+    return f'simpleband_{vds_id}_{bw}minbinsize_{suffix}.png'
+
+
+def _build_shortestinterval_plot_name(vds_id, config_rc):
+    return f'shortestinterval_{vds_id}.png'
+
+
+def plot_recurrent_facets(df_peaks, facet_meta, recurrent_col, excluded_col, draw_band_func, save_path=None, vds_id=None, cfg=None):
+    data = annotate_segment_selection_for_plot(df_peaks, cfg, recurrent_col)
+    fig, axes = plt.subplots(len(DAY_ORDER), len(ALL_PERIODS), figsize=(16, 22), sharex=False, sharey=False)
+    for i, day in enumerate(DAY_ORDER):
+        for j, per in enumerate(ALL_PERIODS):
+            ax = axes[i, j]
+            sub = data[(data['dayofweek'] == day) & (data['period'] == per)].copy()
+            point_handles, point_labels = plot_common_points(ax, sub, recurrent_col, excluded_col)
+            band_handles, band_labels = draw_band_func(ax, facet_meta.get((day, per), {}))
+            handles = point_handles + band_handles
+            labels = point_labels + band_labels
+            if i == 0:
+                ax.set_title(per, fontsize=12, fontweight='bold')
+            if j == 0:
+                ax.set_ylabel(day)
+            ax.set_xlabel('Week Number')
+            ax.yaxis.set_major_locator(ticker.MultipleLocator(1))
+            if per == 'morning-peak':
+                ax.set_ylim(-0.5, 13)
+            else:
+                ax.set_ylim(11, 24.5)
+            if i == 0 and j == 0 and handles:
+                ax.legend(handles, labels, loc='upper left', fontsize=9, frameon=True)
+    title = f"Recurrent Peak Selection ({cfg.get('VDS_label_list', {}).get(str(vds_id), vds_id)})"
+    fig.suptitle(title, fontsize=16)
+    fig.tight_layout()
+    if save_path:
+        plt.savefig(save_path, dpi=150, bbox_inches='tight')
+    plt.show()
+
+
+def run_band_recurrent_pipeline(
+    config_rc,
+    classify_facet_func,
+    draw_band_func,
+    recurrent_col,
+    excluded_col,
+    output_tag,
+    plot_name_builder,
+    save_dir=None,
+    interval_bin_size=0.5,
+):
+    save_dir = Path(save_dir or config_rc.get('save_dir', './01_BPR/02 fig/12 Daily BPR'))
+    save_dir.mkdir(parents=True, exist_ok=True)
+    output_dir = Path('./01_BPR')
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    all_excluded = []
+    all_processed = []
+
+    for vds_id in config_rc['VDS_list']:
+        print(f'Running recurrent detection for VDS {vds_id} ({output_tag})')
+        df_peaks = prepare_peak_table(config_rc, str(vds_id), ALL_PERIODS)
+        processed_facets = []
+        facet_meta = {}
+
+        for day in DAY_ORDER:
+            for per in ALL_PERIODS:
+                facet_df = df_peaks[(df_peaks['dayofweek'] == day) & (df_peaks['period'] == per)].copy()
+                facet_out, meta = classify_facet_func(facet_df, per)
+                processed_facets.append(facet_out)
+                facet_meta[(day, per)] = meta
+
+        df_out = pd.concat(processed_facets, ignore_index=False).sort_index().copy()
+        df_out['vds_id'] = str(vds_id)
+        df_out = annotate_segment_selection_for_plot(df_out, config_rc, recurrent_col)
+        all_processed.append(df_out)
+
+        excluded = df_out[(df_out['is_peak'] == 1) & df_out[excluded_col].fillna(False)].copy()
+        if not excluded.empty:
+            all_excluded.append(excluded)
+
+        base_name = plot_name_builder(str(vds_id))
+        main_plot_path = save_dir / base_name
+        plot_recurrent_facets(df_out, facet_meta, recurrent_col, excluded_col, draw_band_func, save_path=main_plot_path, vds_id=str(vds_id), cfg=config_rc)
+
+        box_path = save_dir / f"{Path(base_name).stem}_boxplot.png"
+        hist_path = save_dir / f"{Path(base_name).stem}_hist.png"
+        plot_start_end_boxplots(df_out, save_path=box_path, vds_id=str(vds_id), cfg=config_rc)
+        plot_start_end_histograms(df_out, bin_size=interval_bin_size, save_path=hist_path, vds_id=str(vds_id), cfg=config_rc)
+
+    excluded_path = output_dir / f'excluded_recurrent_days_{output_tag}.csv'
+    processed_path = output_dir / f'recurrent_days_labeled_{output_tag}.csv'
+    df_excluded_all = pd.concat(all_excluded, ignore_index=True) if all_excluded else pd.DataFrame()
+    df_processed_all = pd.concat(all_processed, ignore_index=True) if all_processed else pd.DataFrame()
+    df_excluded_all.to_csv(excluded_path, index=False)
+    df_processed_all.to_csv(processed_path, index=False)
+
+    return {
+        'output_tag': output_tag,
+        'excluded_csv': str(excluded_path),
+        'labeled_csv': str(processed_path),
+    }
+
+
+def run_recurrent_peak_pipeline(config_rc, save_dir=None):
+    config_rc = copy.deepcopy(config_rc)
+    method = config_rc.get('recurrent_method', 'simpleband')
+    output_tag = build_recurrent_output_tag(config_rc)
+
+    if method == 'simpleband':
+        params = config_rc.get('recurrent_method_params', {}).get('simpleband', {})
+        selector_by_period = params.get('selector_by_period', {'morning-peak': 'both', 'afternoon-peak': 'both'})
+        start_bw = params.get('start_bandwidth_minutes_by_period', {'morning-peak': 30, 'afternoon-peak': 30})
+        end_bw = params.get('end_bandwidth_minutes_by_period', {'morning-peak': 30, 'afternoon-peak': 30})
+        print(f'Running simpleband recurrent detection: selector={selector_by_period}, start_bw={start_bw}, end_bw={end_bw}')
+        bw_values = [v for v in list(normalize_period_mapping(start_bw).values()) + list(normalize_period_mapping(end_bw).values()) if v is not None]
+        return run_band_recurrent_pipeline(
+            config_rc=config_rc,
+            classify_facet_func=lambda facet_df, per: classify_facet_fixed_band(
+                facet_df,
+                per,
+                selector_by_period=selector_by_period,
+                start_bandwidth_minutes_by_period=start_bw,
+                end_bandwidth_minutes_by_period=end_bw,
+                start_bound_mode_by_period=params.get('start_bound_mode_by_period'),
+                end_bound_mode_by_period=params.get('end_bound_mode_by_period'),
+            ),
+            draw_band_func=draw_fixed_band,
+            recurrent_col='recurrent_band',
+            excluded_col='excluded_band',
+            output_tag=output_tag,
+            plot_name_builder=lambda vds_id: _build_simpleband_plot_name(vds_id, config_rc),
+            save_dir=save_dir,
+            interval_bin_size=(max(bw_values) / 60.0) if bw_values else 0.5,
+        )
+
+    if method == 'shortest_interval':
+        params = config_rc.get('recurrent_method_params', {}).get('shortest_interval', {})
+        print(f"Running shortest_interval recurrent detection: selector={params.get('selector_by_period')}, start_q={params.get('start_q_by_period')}, end_q={params.get('end_q_by_period')}")
+        return run_band_recurrent_pipeline(
+            config_rc=config_rc,
+            classify_facet_func=lambda facet_df, per: classify_facet_shortest_interval(
+                facet_df,
+                per,
+                selector_by_period=params.get('selector_by_period'),
+                start_q_by_period=params.get('start_q_by_period'),
+                end_q_by_period=params.get('end_q_by_period'),
+                coverage_by_period=params.get('coverage_by_period'),
+                start_bound_mode_by_period=params.get('start_bound_mode_by_period'),
+                end_bound_mode_by_period=params.get('end_bound_mode_by_period'),
+            ),
+            draw_band_func=draw_fixed_band,
+            recurrent_col='recurrent_band',
+            excluded_col='excluded_band',
+            output_tag=output_tag,
+            plot_name_builder=lambda vds_id: _build_shortestinterval_plot_name(vds_id, config_rc),
+            save_dir=save_dir,
+            interval_bin_size=0.5,
+        )
+
+    if method == 'PELT':
+        raise NotImplementedError('PELT runner is not wired into this copied notebook yet. Use simpleband or shortest_interval here.')
+
+    raise ValueError(f'Unsupported recurrent_method: {method}')
+
+
+
+# +
+# Run exactly one recurrent method from CONFIG_RC.
+# The output tag is later reused in CONFIG_BPR["recurrent_output_tag"].
+
+rc_result = run_recurrent_peak_pipeline(CONFIG_RC)
+print(rc_result)
+
+# -
+
+
+
+
+
+
+
+# ### (Code) Legacy recurrent experiments
+# Use `CONFIG_RC["recurrent_method"]` and `run_recurrent_peak_pipeline(CONFIG_RC)` instead of the old separate cells.
+#
+
+# Legacy cell kept intentionally blank in the merged notebook.
+
+
+# Legacy cell kept intentionally blank in the merged notebook.
+
+
+# ### (Code) PELT
+# PELT is now controlled by `CONFIG_RC["recurrent_method"] = "PELT"` and run through `run_recurrent_peak_pipeline(CONFIG_RC)`.
+#
+
+# Legacy PELT-specific runner replaced by `run_recurrent_peak_pipeline`.
+
+
+# ### (Code) Clustering
 
 # +
 from sklearn.cluster import MeanShift, estimate_bandwidth
@@ -5387,260 +6186,283 @@ def run_v5(df: pd.DataFrame, cfg: dict, xlim: Optional[list] = None, ylim: Optio
 # +
 def build_file_path(cfg: dict) -> str:
     print(cfg['spatial_scope'])
-    if (cfg['spatial_scope'] == "multi_vds"):
+    if cfg['spatial_scope'] == 'multi_vds':
         file_path = f"./01_BPR/c_daily_traffic_division_{cfg['spatial_scope']}_{cfg['VDS_list']}_{cfg['temporal_scale']}_{cfg['aggregate_timeframe']}_{cfg['method']}_{cfg['congest_method']}.csv"
         print(file_path)
+    elif cfg['spatial_scope'] == 'network':
+        file_path = (f"./01_BPR/c_daily_traffic_division_network_{cfg['VDS_num']}"
+                     f"_{cfg['temporal_scale']}_{cfg['aggregate_timeframe']}"
+                     f"_{cfg['method']}_{cfg['congest_method']}.csv")
     else:
         file_path = f"./01_BPR/c_daily_traffic_division_{cfg['spatial_scope']}_{cfg['VDS_num']}_{cfg['temporal_scale']}_{cfg['aggregate_timeframe']}_{cfg['method']}_{cfg['congest_method']}.csv"
     return file_path
 
+
 # === Shared utilities ===
 def r2_score(y_true: np.ndarray, y_pred: np.ndarray) -> float:
-    ss_res = np.sum((y_true - y_pred)**2)
-    ss_tot = np.sum((y_true - np.mean(y_true))**2)
-    return 1.0 - ss_res/ss_tot if ss_tot > 0 else np.nan
+    ss_res = np.sum((y_true - y_pred) ** 2)
+    ss_tot = np.sum((y_true - np.mean(y_true)) ** 2)
+    return 1.0 - ss_res / ss_tot if ss_tot > 0 else np.nan
+
 
 def rmse(y_true: np.ndarray, y_pred: np.ndarray) -> float:
-    return float(np.sqrt(np.mean((y_true - y_pred)**2)))
+    return float(np.sqrt(np.mean((y_true - y_pred) ** 2)))
+
 
 def to_categorical_day(df: pd.DataFrame) -> pd.DataFrame:
     day_order = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-    if "dayofweek" in df.columns:
-        df["dayofweek"] = pd.Categorical(df["dayofweek"], categories=day_order, ordered=True)
+    if 'dayofweek' in df.columns:
+        df['dayofweek'] = pd.Categorical(df['dayofweek'], categories=day_order, ordered=True)
     return df
 
+
+def build_default_recurrent_output_tag_from_bpr(cfg: dict) -> str:
+    method = cfg.get('nonrecurrent_method', 'simpleband')
+    if cfg.get('recurrent_output_tag'):
+        return cfg['recurrent_output_tag']
+    if method == 'simpleband':
+        return f"simpleband_{int(cfg.get('bandwidth', 30))}minbinsize_{cfg.get('bandwidth_method', 'bb')}"
+    if method == 'PELT':
+        pen = cfg.get('pelt_penalty', 20)
+        length_threshold = cfg.get('pelt_length_threshold', 4)
+        return f"PELT_pen{pen}_len{length_threshold}"
+    return str(method)
+
+
+def build_excluded_recurrent_days_path(cfg: dict) -> str:
+    if cfg.get('recurrent_output_path'):
+        return cfg['recurrent_output_path']
+    tag = build_default_recurrent_output_tag_from_bpr(cfg)
+    return f"./01_BPR/excluded_recurrent_days_{tag}.csv"
+
+
 # === Load + annotate once ===
-# add columns of revise the format of dataframe
 def load_and_annotate(cfg: dict) -> pd.DataFrame:
     fp = build_file_path(cfg)
     df = pd.read_csv(fp)
-    # basic date fields
-    df["date"] = df["date"].astype(str)
-    df["month"] = df["date"].str.slice(0, 4)
+    df['date'] = df['date'].astype(str)
+    df['month'] = df['date'].str.slice(0, 4)
 
-    # free-flow travel time
-    ## Divide the mode depending on how day-dependent freeflow-speed or fixed freeflow
-    if cfg["free_tt_mode"] == "by_date_offpeak":
-        off = df[df["period"] == "off-peak"]
-        free_map = off.set_index("date")["traveltimes"].to_dict()
-        df["free_traveltime"] = df["date"].map(free_map)
+    if cfg['free_tt_mode'] == 'by_date_offpeak':
+        off = df[df['period'] == 'off-peak']
+        free_map = off.set_index('date')['traveltimes'].to_dict()
+        df['free_traveltime'] = df['date'].map(free_map)
     else:
-        if cfg["free_tt_method"] == "FD":
+        if cfg['free_tt_method'] == 'FD':
             if cfg['spatial_scope'] == 'single':
-                df["free_traveltime"] = cfg['free_tt_FD'][cfg["VDS_num"]]
-            elif cfg['spatial_scope'] == 'multi_vds':
-                df["free_traveltime"] = cfg['free_tt_FD']['multi_vds']
-        elif cfg["free_tt_method"] == "offpeak_avg":
-            if cfg['spatial_scope'] == 'single':
-                df["free_traveltime"] = cfg['free_tt_offpeak_avg'][cfg["VDS_num"]]
-            elif cfg['spatial_scope'] == 'multi_vds':
-                df["free_traveltime"] = cfg['free_tt_offpeak_avg']['multi_vds']
+                df['free_traveltime'] = cfg['free_tt_FD'][cfg['VDS_num']]
+            else:
+                df['free_traveltime'] = cfg['free_tt_FD']['multi_vds']
+        elif cfg['free_tt_method'] == 'offpeak_avg':
+            if cfg['spatial_scope'] in ('single', 'network'):
+                df['free_traveltime'] = cfg['free_tt_offpeak_avg'].get(
+                    cfg['VDS_num'], cfg['free_tt_offpeak_avg'].get('multi_vds'))
+            else:
+                df['free_traveltime'] = cfg['free_tt_offpeak_avg']['multi_vds']
 
-    if cfg["spatial_scope"] == 'single':
+    if cfg['spatial_scope'] == 'single':
         lane_num = c_lane_num[cfg['VDS_num']]
         df['totaldemandoverlanes'] = df['totaldemand'] * len(lane_num)
-        df['ln_totaldemandoverlanes'] = np.log(df["totaldemandoverlanes"])
-    
-    # derived logs
-    df["ln_avg_flow"] = np.log(df["avg_flow"])
-    df["ln_totaldemand"] = np.log(df["totaldemand"])
-    
+    else:  # 'multi_vds' or 'network' — demand already network/multi level
+        df['totaldemandoverlanes'] = df['totaldemand']
 
-    # ln((z/ζ)-1) using either fixed or date-wise ζ
-    df["ln_t_tau"] = np.log(df["traveltimes"]/df["free_traveltime"] - 1.0)
+    df['ln_totaldemandoverlanes'] = np.nan
+    mask = df['totaldemandoverlanes'] > 0
+    df.loc[mask, 'ln_totaldemandoverlanes'] = np.log(df.loc[mask, 'totaldemandoverlanes'])
 
-    # Version 5/6 convenience (Ideal waiting time)
-    W_hour = cfg["W_minutes"]/60.0
-    df["avgdemand"] = np.where(
-        df["division"] == 0, df["totaldemand"], df["totaldemand"]/W_hour
-    )
+    df['ln_avg_flow'] = np.nan
+    mask = df['avg_flow'] > 0
+    df.loc[mask, 'ln_avg_flow'] = np.log(df.loc[mask, 'avg_flow'])
 
+    df['ln_totaldemand'] = np.nan
+    mask = df['totaldemand'] > 0
+    df.loc[mask, 'ln_totaldemand'] = np.log(df.loc[mask, 'totaldemand'])
+
+    tau_ratio = df['traveltimes'] / df['free_traveltime'] - 1.0
+    df['ln_t_tau'] = np.nan
+    mask = tau_ratio > 0
+    df.loc[mask, 'ln_t_tau'] = np.log(tau_ratio[mask])
+
+    W_hour = cfg['W_minutes'] / 60.0
+    df['avgdemand'] = np.where(df['division'] == 0, df['totaldemand'], df['totaldemand'] / W_hour)
     return df
 
-# === Recurrent vs all peaks (CONFIG) ===
-def use_recurrent_peak_filter(cfg: dict) -> bool:
-    """
-    True  -> remove rows that appear in the non-recurrent exclusion CSV (recurrent peaks only).
-    False -> keep all peak-period rows (no exclusion merge).
 
-    New key: cfg['peak_subset'] in {'all', 'recurrent'}.
-    Legacy: cfg['drop_nonrecurrent_days'] if peak_subset is absent.
-    """
-    ps = cfg.get("peak_subset")
-    if ps == "all":
-        return False
-    if ps == "recurrent":
-        return True
-    return bool(cfg.get("drop_nonrecurrent_days", False))
+def weighted_harmonic_mean(values, weights):
+    values = np.asarray(values, dtype=float)
+    weights = np.asarray(weights, dtype=float)
+    mask = np.isfinite(values) & np.isfinite(weights) & (values > 0) & (weights > 0)
+    if not np.any(mask):
+        return np.nan
+    return float(np.sum(weights[mask] * values[mask]) / weights[mask].sum())
 
 
-def recurrent_exclusion_csv_path(cfg: dict) -> str:
-    """
-    Path to excluded_non_recurrent_peaks_*.csv produced by your preprocessing notebook.
-    Override with cfg['recurrent_peaks']['exclusion_csv'].
-    Method suffix from cfg['recurrent_peaks']['method'] or legacy cfg['nonrecurrent_method'].
-    """
-    rp = cfg.get("recurrent_peaks") or {}
-    if rp.get("exclusion_csv"):
-        return rp["exclusion_csv"]
-    method = rp.get("method") or cfg.get("nonrecurrent_method") or "PELT"
-    return f"./excluded_non_recurrent_peaks_{method}.csv"
+def aggregate_segment_level_bpr(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
+    if not cfg.get('segment_aggregation', False):
+        return df
+    if cfg.get('temporal_scale') != 'speedbasedpeak':
+        print('segment_aggregation is only applied for speedbasedpeak. Returning unaggregated data.')
+        return df
+    if df.empty:
+        return df
+
+    period_include = cfg['period_include'][cfg['temporal_scale']]
+    min_weeks_map = cfg.get('segment_min_weeks_by_period', {'morning-peak': 2, 'afternoon-peak': 2})
+
+    out = df.copy()
+    out['date'] = out['date'].astype(str)
+    out['date_dt'] = pd.to_datetime(out['date'], format='%y%m%d', errors='coerce')
+    min_date = out['date_dt'].min()
+    out['week_num'] = ((out['date_dt'] - min_date).dt.days // 7) + 1
+    out['start_hour'] = out['start_time'].apply(time_to_fractional_hour)
+    out['end_hour'] = out['end_time'].apply(time_to_fractional_hour)
+    if 'duration' not in out.columns:
+        out['duration'] = (out['end_hour'] - out['start_hour']) * 60.0
+
+    rows = []
+    for period in period_include:
+        dfl = out[out['period'] == period].copy()
+        if dfl.empty:
+            continue
+        for day, g in dfl.groupby('dayofweek', dropna=False):
+            g = g.sort_values(['week_num', 'date_dt']).copy()
+            g['segment_id'] = (g['week_num'].diff().fillna(1).ne(1)).cumsum() + 1
+            for segment_id, seg in g.groupby('segment_id', dropna=False):
+                min_weeks = int(min_weeks_map.get(period, 1))
+                if len(seg) < min_weeks:
+                    continue
+                avg_demand = float(seg['totaldemandoverlanes'].mean())
+                avg_totaldemand = float(seg['totaldemand'].mean()) if 'totaldemand' in seg.columns else np.nan
+                avg_avg_flow = float(seg['avg_flow'].mean()) if 'avg_flow' in seg.columns else np.nan
+                avg_tt = weighted_harmonic_mean(seg['traveltimes'], seg['totaldemandoverlanes'])
+                free_tt = float(seg['free_traveltime'].median())
+                tau_ratio = avg_tt / free_tt - 1.0 if pd.notna(avg_tt) and pd.notna(free_tt) and free_tt > 0 else np.nan
+                rows.append({
+                    'period': period,
+                    'dayofweek': day,
+                    'segment_id': int(segment_id),
+                    'n_days': int(len(seg)),
+                    'date': seg['end_date'].iloc[0] if 'end_date' in seg.columns else seg['date'].iloc[-1],
+                    'duration': float(seg['duration'].mean()),
+                    'traveltimes': avg_tt,
+                    'free_traveltime': free_tt,
+                    'totaldemandoverlanes': avg_demand,
+                    'totaldemand': avg_totaldemand,
+                    'avg_flow': avg_avg_flow,
+                    'ln_totaldemandoverlanes': np.log(avg_demand) if avg_demand > 0 else np.nan,
+                    'ln_totaldemand': np.log(avg_totaldemand) if pd.notna(avg_totaldemand) and avg_totaldemand > 0 else np.nan,
+                    'ln_avg_flow': np.log(avg_avg_flow) if pd.notna(avg_avg_flow) and avg_avg_flow > 0 else np.nan,
+                    'ln_t_tau': np.log(tau_ratio) if pd.notna(tau_ratio) and tau_ratio > 0 else np.nan,
+                    'start_time': seg['start_time'].iloc[-1] if 'start_time' in seg.columns else np.nan,
+                    'end_time': seg['end_time'].iloc[-1] if 'end_time' in seg.columns else np.nan,
+                    'start_hour': float(seg['start_hour'].mean()),
+                    'end_hour': float(seg['end_hour'].mean()),
+                })
+    return pd.DataFrame(rows)
+
+
+def _apply_nonrecurrent_exclusion(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
+    exclusion_file = build_excluded_recurrent_days_path(cfg)
+    if not os.path.exists(exclusion_file):
+        raise FileNotFoundError(f"Exclusion file not found: {exclusion_file}. Run the recurrent detection cell first.")
+
+    df_excl = pd.read_csv(exclusion_file)
+    if 'vds_id' in df_excl.columns:
+        df_excl = df_excl[df_excl['vds_id'].astype(str) == str(cfg['VDS_num'])]
+    if df_excl.empty:
+        return df
+
+    if 'date' not in df_excl.columns and 'date_dt' in df_excl.columns:
+        df_excl['date'] = pd.to_datetime(df_excl['date_dt'], errors='coerce').dt.strftime('%y%m%d')
+    df_excl['date'] = df_excl['date'].astype(str)
+
+    if 'start_hour' not in df_excl.columns and 'start_time' in df_excl.columns:
+        df_excl['start_hour'] = df_excl['start_time'].apply(time_to_fractional_hour)
+    if 'end_hour' not in df_excl.columns and 'end_time' in df_excl.columns:
+        df_excl['end_hour'] = df_excl['end_time'].apply(time_to_fractional_hour)
+
+    work = df.copy()
+    work['date'] = work['date'].astype(str)
+    work['start_hour_tmp'] = work['start_time'].apply(time_to_fractional_hour)
+    work['end_hour_tmp'] = work['end_time'].apply(time_to_fractional_hour)
+
+    merge_left = ['date', 'period']
+    merge_right = ['date', 'period']
+    if 'start_hour' in df_excl.columns:
+        merge_left.append('start_hour_tmp')
+        merge_right.append('start_hour')
+    if 'end_hour' in df_excl.columns:
+        merge_left.append('end_hour_tmp')
+        merge_right.append('end_hour')
+
+    initial_len = len(work)
+    work = work.merge(df_excl[merge_right].drop_duplicates(), left_on=merge_left, right_on=merge_right, how='left', indicator=True)
+    work = work[work['_merge'] == 'left_only'].drop(columns=['_merge'])
+    drop_cols = [col for col in ['start_hour_tmp', 'end_hour_tmp'] + merge_right if col in work.columns and col not in df.columns]
+    work = work.drop(columns=drop_cols, errors='ignore')
+    print(f"Excluded {initial_len - len(work)} rows based on {os.path.basename(exclusion_file)}")
+    return work
 
 
 # === One place to filter ===
 def apply_filters(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
-    # common: remove division == -1
-    if "division" in df.columns:
-        df = df[df["division"] != -1]
-    
-    if cfg.get("dayofweek_exclude", False):
-        df = df[~df["dayofweek"].isin(cfg["dayofweek_exclude"])]
-    if cfg.get("month_exclude", False):
-        df = df[~df["month"].isin(cfg["month_exclude"])]
-    if cfg["year_exclude"] and "year" in df.columns:
-        df = df[~df["year"].isin(cfg["year_exclude"])]
+    df = df.copy()
+    if 'division' in df.columns:
+        df = df[df['division'] != -1]
 
-    df = df[df["period"].isin(cfg["period_include"][cfg['temporal_scale']])]
+    if cfg.get('dayofweek_exclude'):
+        df = df[~df['dayofweek'].isin(cfg['dayofweek_exclude'])]
+    if cfg.get('month_exclude'):
+        df = df[~df['month'].isin(cfg['month_exclude'])]
+    if cfg.get('year_exclude') and 'year' in df.columns:
+        df = df[~df['year'].isin(cfg['year_exclude'])]
 
-    # keep your special filter
-    if cfg.get("spatial_scope") == "single" and str(cfg.get("VDS_num")) == "1205541":
-        df = df[df["month"].isin(["2401", "2402", "2403"])]
-    
-    # -----------------------
-    # 1) drop days with weird peak start_time (optional)
-    # -----------------------
-    if cfg.get("drop_days_weird_peak_times", False):
+    df = df[df['period'].isin(cfg['period_include'][cfg['temporal_scale']])]
 
-        morning_earliest = cfg["morning_earliest"]
-        afternoon_latest = cfg["afternoon_latest"]
+    if cfg.get('spatial_scope') == 'single' and str(cfg.get('VDS_num')) == '1205541':
+        df = df[df['month'].isin(['2401', '2402', '2403'])]
 
-        # read_csv
-        if (cfg['spatial_scope'] == "multi_vds"):
+    if cfg.get('drop_days_weird_peak_times') or cfg.get('drop_multiplecongestion_days'):
+        if cfg['spatial_scope'] == 'multi_vds':
             file_path_sb = f"./01_BPR/c_daily_traffic_division_{cfg['spatial_scope']}_{cfg['VDS_list']}_speedbasedpeak_{cfg['aggregate_timeframe']}_{cfg['method']}_{cfg['congest_method']}.csv"
         else:
             file_path_sb = f"./01_BPR/c_daily_traffic_division_{cfg['spatial_scope']}_{cfg['VDS_num']}_speedbasedpeak_{cfg['aggregate_timeframe']}_{cfg['method']}_{cfg['congest_method']}.csv"
-                
-        # parse "HH:MM" (handles '-' -> NaT)
         df_sb = pd.read_csv(file_path_sb)
-        df_sb = df_sb[df_sb["period"].isin(['morning-peak','afternoon-peak'])]
+        df_sb = df_sb[df_sb['period'].isin(['morning-peak', 'afternoon-peak'])]
+        df_sb['date'] = df_sb['date'].astype(str)
+    else:
+        df_sb = None
 
-        # st = df_sb.to_datetime(df_sb["start_time"], format="%H:%M", errors="coerce").dt.time
-        st = pd.to_datetime(df_sb["start_time"], format="%H:%M", errors="coerce").dt.time
+    if cfg.get('drop_days_weird_peak_times') and df_sb is not None:
+        st = pd.to_datetime(df_sb['start_time'], format='%H:%M', errors='coerce').dt.time
+        bad_mask = (((df_sb['period'] == 'morning-peak') & (st < pd.to_datetime(cfg['morning_earliest']).time())) |
+                    ((df_sb['period'] == 'afternoon-peak') & (st > pd.to_datetime(cfg['afternoon_latest']).time())))
+        bad_dates = set(df_sb.loc[bad_mask, 'date'].astype(str))
+        df = df[~df['date'].astype(str).isin(bad_dates)]
 
-        bad_mask = (
-            ((df_sb["period"] == "morning-peak") &
-             (st < pd.to_datetime(morning_earliest).time()))
-            |
-            ((df_sb["period"] == "afternoon-peak") &
-             (st > pd.to_datetime(afternoon_latest).time()))
-        )
+    if cfg.get('drop_multiplecongestion_days') and df_sb is not None:
+        for period in ['morning-peak', 'afternoon-peak']:
+            counts_per_date = df_sb[df_sb['period'] == period].groupby('date').size()
+            bad_dates = set(counts_per_date[counts_per_date > 1].index.astype(str))
+            if cfg['temporal_scale'] in ['entireday', 'hour']:
+                df = df[~df['date'].astype(str).isin(bad_dates)]
+            elif cfg['temporal_scale'] == 'speedbasedpeak':
+                df = df[~((df['date'].astype(str).isin(bad_dates)) & (df['period'] == period))]
 
-        bad_dates = df_sb.loc[bad_mask, "date"].unique()
-        print(cfg['VDS_list'])
-
-        # apply to the current df
-        print("bad_dates", bad_dates,len(bad_dates))
-        df["date"] = pd.to_numeric(df["date"], errors="coerce").astype(int)
-        bad_dates = bad_dates.astype(int)
-
-        
-        # print(len(df))
-        df = df[~df["date"].isin(bad_dates)]
-        # print(len(df))
-
-
-    # Optional: Print the new counts to verify
-    print(f"Original row count before overlapping peaks: {len(df)}")
-
-    #### count & filter out dates with more than 1 occurenece
-    periods_to_check = ['morning-peak', 'afternoon-peak']
-    
-    if cfg.get("drop_multiplecongestion_days", False):
-        for period in periods_to_check:
-            # 1. Filter for the specific period
-            period_df = df_sb[df_sb['period'] == period]
-        
-            # 2. Count occurrences per date
-            counts_per_date = period_df.groupby('date').size()
-        
-            # 3. Filter for dates with more than 1 occurrence
-            dates_with_multiple = counts_per_date[counts_per_date > 1]
-            count_result = len(dates_with_multiple)
-        
-            if count_result > 0:
-                print(f"--- {period.upper()} ---")
-                print(f"Number of dates with more than 1 {period}: {count_result}")
-                print("Specific dates and their counts:")
-                print(dates_with_multiple)
-            print("\n")
-    
-            # 2. Filter the original DataFrame to REMOVE these dates
-            if (cfg['temporal_scale'] in ['entireday','hour']):
-                df = df[~df['date'].isin(dates_with_multiple)]
-            
-            elif (cfg['temporal_scale'] == 'speedbasedpeak'):
-                print(len(df['date'].isin(dates_with_multiple.index.tolist())))
-                df = df[~((df['date'].isin(dates_with_multiple.index.tolist())) & (df['period'] == period))]    
-            # Optional: Print the new counts to verify
-        print(f"filtered row count: {len(df)}")
-
-    if use_recurrent_peak_filter(cfg):
-        # Exclude rows listed in non-recurrent exclusion file (recurrent-peak-only BPR)
-        exclusion_file = recurrent_exclusion_csv_path(cfg)
-        if os.path.exists(exclusion_file):
-            df_excl = pd.read_csv(exclusion_file)
-            
-            print( cfg['VDS_num'])
-
-            df_excl = df_excl[df_excl['vds_id'].astype(str) == str(cfg['VDS_num'])]
-            
-            # 1. Convert to numeric first, forcing invalid values to NaN
-            # 1. Convert the '2024-02-12' strings into Datetime objects
-            df_excl['date_dt'] = pd.to_datetime(df_excl['date_dt'], errors='coerce')
-            
-            # 2. Format as '240212' string, then convert to numeric/int
-            # .dt.strftime('%y%m%d') extracts the last two digits of the year + month + day
-            df_excl['date_dt'] = df_excl['date_dt'].dt.strftime('%y%m%d').astype(float).fillna(0).astype(np.int64)
-            
-            # 3. Standardize the main dataframe 'date' to int64 as well to avoid merge errors
-            df['date'] = pd.to_numeric(df['date'], errors='coerce').fillna(0).astype(np.int64)
-
-            print(df_excl.head())
-
-            def to_fractional(t_str):
-                if pd.isna(t_str) or t_str == '-': return np.nan
-                try:
-                    h, m = map(int, str(t_str).split(':'))
-                    return h + m/60.0
-                except: return np.nan
-
-            df['start_hour_tmp'] = df['start_time'].apply(to_fractional)
-            
-            
-            # Create a mask to identify rows to remove
-            # We match on vds_id, date, and period to identify the specific peak occurrences
-            # Note: If your exclusion file uses 'date_dt' and 'period', make sure they align with df['date'] and df['period']
-            initial_len = len(df)
-            
-            # Perform an anti-join
-            # We merge with an indicator and keep only rows present in 'left' only
-            df = df.merge(
-                df_excl[['date_dt', 'period', 'start_hour']], 
-                left_on=['date', 'period', 'start_hour_tmp'], 
-                right_on=['date_dt', 'period', 'start_hour'], 
-                how='left', 
-                indicator=True
-            )
-            df = df[df['_merge'] == 'left_only'].drop(columns=['_merge', 'date_dt','start_hour_tmp'])
-            
-            print(f"Excluded {initial_len - len(df)} rows based on non-recurrent peaks file.")
-        else:
-            print(
-                f"Warning: peak_subset=recurrent but exclusion file not found: {exclusion_file!r} "
-                "(generate it with the matching nonrecurrent_method / recurrent_peaks.method)."
-            )
+    if cfg.get('drop_nonrecurrent_days'):
+        df = _apply_nonrecurrent_exclusion(df, cfg)
 
     return to_categorical_day(df.copy())
+
+
+def prepare_bpr_dataframe(cfg: dict) -> pd.DataFrame:
+    df_all = load_and_annotate(cfg)
+    df_use = apply_filters(df_all, cfg)
+    if cfg.get('segment_aggregation'):
+        df_use = aggregate_segment_level_bpr(df_use, cfg)
+    return to_categorical_day(df_use.copy())
+
+
 
 # + editable=true slideshow={"slide_type": ""}
 # stat
@@ -5651,85 +6473,66 @@ import statsmodels.api as sm
 from statsmodels.stats.stattools import jarque_bera
 from statsmodels.stats.diagnostic import linear_reset
 
+
 def fit_bpr_ols_stats(dfg, xcol=None, ycol=None):
     """
     Fits: y = a + b x  (a = ln(tilde_alpha), b = beta)
     Returns a dict with tilde_alpha, t-stats, p-values, and R^2.
     """
-    
-    ## descriptive statistics
-    
-    mean_val = dfg['duration'].mean()
-    median_val = dfg['duration'].median()
-    
-    
-    # dfg = dfg[[xcol, ycol]].dropna()
-    # if len(dfg) < 3:
-    #     return None  # not enough points
+    dfg = dfg.replace([np.inf, -np.inf], np.nan).dropna(subset=[xcol, ycol]).copy()
+    if len(dfg) < 5:
+        return None
+
+    duration_col = None
+    for candidate in ['duration', 'duration_min_mean']:
+        if candidate in dfg.columns:
+            duration_col = candidate
+            break
+    mean_val = dfg[duration_col].mean() if duration_col else np.nan
+    median_val = dfg[duration_col].median() if duration_col else np.nan
 
     x = dfg[xcol].to_numpy()
     y = dfg[ycol].to_numpy()
+    if np.nanmax(x) == np.nanmin(x):
+        return None
 
-    X = sm.add_constant(x)  # [1, x]
+    X = sm.add_constant(x)
     model = sm.OLS(y, X).fit()
-
     a = model.params[0]
     b = model.params[1]
-    
-    # --- Residual normality test (Jarque–Bera) ---
+
     jb_stat, jb_pvalue, skew, kurt = jarque_bera(model.resid)
-
-
-    # --- Ramsey RESET (functional form / nonlinearity check) ---
-    # H0: model is correctly specified (no omitted nonlinear terms)
-    reset_powers = (2,3)
-    
-    reset_res = linear_reset(model, power=reset_powers, use_f=True)
+    reset_res = linear_reset(model, power=(2, 3), use_f=True)
     reset_stat = float(reset_res.fvalue)
     reset_p = float(reset_res.pvalue)
-    
-    # =========================
-    # 3) LINK TEST
-    # =========================
-    y_hat = model.fittedvalues
-    X_link = sm.add_constant(
-        np.column_stack([y_hat, y_hat**2])
-    )
-    link_model = sm.OLS(y, X_link).fit()
 
-    link_stat = float(link_model.tvalues[2])     # coefficient on y_hat^2
-    link_p = float(link_model.pvalues[2])   
+    y_hat = model.fittedvalues
+    X_link = sm.add_constant(np.column_stack([y_hat, y_hat ** 2]))
+    link_model = sm.OLS(y, X_link).fit()
+    link_stat = float(link_model.tvalues[2])
+    link_p = float(link_model.pvalues[2])
 
     N_0 = (0.15 / math.exp(a)) ** (1 / b)
-    
-    out = {
-        "ln_tilde_alpha": a,                         # intercept
-        "alpha_t": float(model.tvalues[0]),
-        "alpha_p": float(model.pvalues[0]),
-        "N_0": float(N_0),
-        "beta": float(b),
-        "beta_t": float(model.tvalues[1]),
-        "beta_p": float(model.pvalues[1]),
-        "r2": float(model.rsquared),
-        "n": int(model.nobs),
-
-        # --- Normality diagnostics ---
-        "jb_stat": float(jb_stat),
-        "jb_p": float(jb_pvalue),
-
-        # RESET diagnostics
-        # "reset_power": tuple(reset_powers),
-        "reset_stat": reset_stat,   # F-stat if use_f=True
-        "reset_p": reset_p,
-
-                # Link Test
-        "link_t": link_stat,
-        "link_p": link_p,
-
-        "median": median_val,
-        "mean": mean_val,
+    return {
+        'ln_tilde_alpha': a,
+        'alpha_t': float(model.tvalues[0]),
+        'alpha_p': float(model.pvalues[0]),
+        'N_0': float(N_0),
+        'beta': float(b),
+        'beta_t': float(model.tvalues[1]),
+        'beta_p': float(model.pvalues[1]),
+        'r2': float(model.rsquared),
+        'n': int(model.nobs),
+        'jb_stat': float(jb_stat),
+        'jb_p': float(jb_pvalue),
+        'reset_stat': reset_stat,
+        'reset_p': reset_p,
+        'link_t': link_stat,
+        'link_p': link_p,
+        'median': median_val,
+        'mean': mean_val,
     }
-    return out
+
 
 
 # + editable=true slideshow={"slide_type": ""}
@@ -5740,124 +6543,78 @@ def plot_bpr_all_in_one_png_3x3(
     version_key: str,
     xlim=None,
     ylim=None,
-    var_list=None,               # kept for consistency
-    suptitle="Segment-Level Log-",
-    out_name="BPR_V3_ALL_3x3",
-    show_legend_only_first=False,   # set True if you want only 1 legend total
+    var_list=None,
+    suptitle='Segment-Level Log-',
+    out_name='BPR_V3_ALL_3x3',
+    show_legend_only_first=False,
     font_add=5,
     dpi=200,
 ):
-    """
-    Creates a single 3x3 PNG with your requested layout:
-      row1: VDS 1-①, VDS 1-②, blank
-      row2: VDS 2-①, VDS 2-②, VDS 2-③
-      row3: VDS 2-④, VDS 2-⑤, blank
-    """
-
-    # --- pull VDS list and label map from cfg ---
-    vds_list = cfg.get("VDS_list", [])
-    vds_label_map = cfg.get("VDS_label_list", {})
-
+    vds_list = cfg.get('VDS_list', [])
+    vds_label_map = cfg.get('VDS_label_list', {})
     table_rows = []
-    periods_for_table = cfg["period_include"][cfg['temporal_scale']]
-    
-
+    periods_for_table = cfg['period_include'][cfg['temporal_scale']]
 
     assert version_key in LINEAR_REGISTRY_BPR, f"Unknown version_key: {version_key}"
     trans = LINEAR_REGISTRY_BPR[version_key]
-
     xcol, ycol, xlab, ylab = trans()
-    
-    # panel order must match your VDS_list mapping
-    # Expecting 7 items: [1-①,1-②,2-①,2-②,2-③,2-④,2-⑤]
-    if len(vds_list) != 7:
+
+    if len(vds_list) != 6:
         print(f"[Warning] Expected 7 VDS in cfg['VDS_list'], got {len(vds_list)}. Will plot what is available.")
 
-    # layout indices in a 3x3 grid for 7 panels
-    # positions: (r,c)
-    positions = [(0,0),(0,1),
-                 (1,0),(1,1),(1,2),
-                 (2,0),(2,1)]   # (0,2) and (2,2) remain blank
-
-    fig, axs = plt.subplots(
-        3, 3,
-        figsize=(16, 14),
-        constrained_layout=True
-    )
-
-    # blank all axes first
+    positions = [(0, 0), (0, 1), (1, 0), (1, 1),(2, 0), (2, 1)]
+    fig, axs = plt.subplots(3, 2, figsize=(14, 14), constrained_layout=True)
     for ax in axs.ravel():
         ax.set_visible(False)
 
-    # loop stations in order
     for i, vds_id in enumerate(vds_list):
         if i >= len(positions):
             break
-
         r, c = positions[i]
         ax = axs[r, c]
         ax.set_visible(True)
 
-        # build cfg for this station
         cfg_i = copy.deepcopy(cfg)
-        cfg_i["VDS_num"] = vds_id
-        # cfg_i["VDS_list"] = vds_id  # keep your internal convention
+        cfg_i['VDS_num'] = vds_id
+        df_use = prepare_bpr_dataframe(cfg_i)
+        print(df_use.head(n=30))
 
-        # --- load + filter using YOUR existing pipeline ---
-        df_all = load_and_annotate(cfg_i)
-        df_use = apply_filters(df_all, cfg_i)
-        
-        # ---- collect stats for BOTH periods ----
         for per in periods_for_table:
-            dfg = df_use[df_use["period"] == per].copy()
-            # dfg.to_csv(f"stas_{vds_id}_{per}.csv")
-            
-            stats = fit_bpr_ols_stats(dfg,xcol,ycol)
-    
-            peak_label = ("AM" if per == "morning-peak" else "PM" if per == "afternoon-peak" else "Entireday" if per == "off-peak" else per)
-            
+            dfg = df_use[df_use['period'] == per].copy()
+            dfg.to_csv(f"debug_bpr_{vds_id}_{per}.csv", index=False)
+
+            stats = fit_bpr_ols_stats(dfg, xcol, ycol)
+            peak_label = ('AM' if per == 'morning-peak' else 'PM' if per == 'afternoon-peak' else 'Entireday' if per == 'off-peak' else per)
             row = {
-                "VDS": vds_label_map.get(str(vds_id), str(vds_id)),  # e.g., "1-①"
-                "Peak-period": str(peak_label),
-                "N": 0 if stats is None else stats["n"],
-                r"$log\tilde{\alpha}$": np.nan if stats is None else stats["ln_tilde_alpha"],
-                "t-statistic (tilde_alpha)": np.nan if stats is None else stats["alpha_t"],
-                "p-value (tilde_alpha)": np.nan if stats is None else stats["alpha_p"],
-                r"$N_0$": np.nan if stats is None else stats["N_0"],
-                r"$\beta$": np.nan if stats is None else stats["beta"],
-                "t-statistic (beta)": np.nan if stats is None else stats["beta_t"],
-                "p-value (beta)": np.nan if stats is None else stats["beta_p"],
-                "R-square": np.nan if stats is None else stats["r2"],
-                "jb_stat": np.nan if stats is None else stats["jb_stat"],
-                "jb_p": np.nan if stats is None else stats["jb_p"],
-                "reset_stat": np.nan if stats is None else stats["reset_stat"],
-                "reset_p": np.nan if stats is None else stats["reset_p"],
-                "link_t": np.nan if stats is None else stats["link_t"],
-                "link_p": np.nan if stats is None else stats["link_p"],
-                 "median": stats["median"],
-                 "mean": stats["mean"],
+                'VDS': vds_label_map.get(str(vds_id), str(vds_id)),
+                'Peak-period': str(peak_label),
+                'N': 0 if stats is None else stats['n'],
+                r'$log\tilde{\alpha}$': np.nan if stats is None else stats['ln_tilde_alpha'],
+                't-statistic (tilde_alpha)': np.nan if stats is None else stats['alpha_t'],
+                'p-value (tilde_alpha)': np.nan if stats is None else stats['alpha_p'],
+                r'$N_0$': np.nan if stats is None else stats['N_0'],
+                r'$\beta$': np.nan if stats is None else stats['beta'],
+                't-statistic (beta)': np.nan if stats is None else stats['beta_t'],
+                'p-value (beta)': np.nan if stats is None else stats['beta_p'],
+                'R-square': np.nan if stats is None else stats['r2'],
+                'jb_stat': np.nan if stats is None else stats['jb_stat'],
+                'jb_p': np.nan if stats is None else stats['jb_p'],
+                'reset_stat': np.nan if stats is None else stats['reset_stat'],
+                'reset_p': np.nan if stats is None else stats['reset_p'],
+                'link_t': np.nan if stats is None else stats['link_t'],
+                'link_p': np.nan if stats is None else stats['link_p'],
+                'median': np.nan if stats is None else stats['median'],
+                'mean': np.nan if stats is None else stats['mean'],
             }
             table_rows.append(row)
 
-            
-        df_params = pd.DataFrame(table_rows)
-        
-        # legend logic
-        show_legend = True
-        if show_legend_only_first and i != 0:
-            show_legend = False
-
-        if len(xlim_list) >1:
-            xlim = xlim_list[i]
-        else:
-            xlim = xlim_list[0]
-        
-        # plot panel
+        show_legend = not (show_legend_only_first and i != 0)
+        use_xlim = xlim_list[i] if len(xlim_list) > 1 else xlim_list[0]
         plot_bpr_single_panel(
             df_use=df_use,
             cfg=cfg_i,
             version_key=version_key,
-            xlim=xlim,
+            xlim=use_xlim,
             ylim=ylim,
             ax=ax,
             xcol=xcol,
@@ -5865,33 +6622,32 @@ def plot_bpr_all_in_one_png_3x3(
             show_legend=show_legend,
             font_add=font_add,
         )
-
-        # FD-style panel title: "VDS 1-①"
         tag = vds_label_map.get(str(vds_id), str(vds_id))
         ax.set_title(f"{tag}", fontsize=16 + font_add, pad=8)
 
-    # ----- shared labels + suptitle (prevents overlap) -----
     fig.suptitle(suptitle, fontsize=20 + font_add, y=1.05)
     fig.supxlabel(xlab, fontsize=16 + font_add)
     fig.supylabel(ylab, fontsize=16 + font_add)
 
-    # save
-    save_dir = cfg.get("save_dir", ".")
+    save_dir = cfg.get('save_dir', '.')
     os.makedirs(save_dir, exist_ok=True)
     out_path = os.path.join(save_dir, f"{out_name}.png")
-    fig.savefig(out_path, dpi=dpi, bbox_inches="tight")
+    fig.savefig(out_path, dpi=dpi, bbox_inches='tight')
     plt.show()
-    
-    out_table_filename = f"BPR_params_{cfg_i['temporal_scale']}_{periods_for_table}.csv"
-    
-    out_table_csv = os.path.join(save_dir, f"BPR_params_{cfg_i['temporal_scale']}_{periods_for_table}.csv")
+
+    df_params = pd.DataFrame(table_rows)
+    if cfg.get('drop_nonrecurrent_days'):
+        out_table_filename = f"BPR_params_{cfg['temporal_scale']}_{cfg.get('nonrecurrent_method', 'all')}_{cfg.get('recurrent_output_tag', 'default')}.csv"
+    else:
+        out_table_filename = f"BPR_params_{cfg['temporal_scale']}_{periods_for_table}.csv"
+    out_table_csv = os.path.join(save_dir, out_table_filename)
     df_params.to_csv(out_table_csv, index=False)
-    
-    print("Saved table:", out_table_csv)
+
+    print('Saved table:', out_table_csv)
     print(df_params)
-    print(f"Saved: {out_path}")
-    
+    print(f'Saved: {out_path}')
     return out_path
+
 
 
 # + editable=true slideshow={"slide_type": ""}
@@ -5901,6 +6657,7 @@ import numpy as np
 import statsmodels.api as sm
 from statsmodels.stats.stattools import jarque_bera
 
+
 def plot_bpr_single_panel(
     df_use,
     cfg,
@@ -5908,101 +6665,67 @@ def plot_bpr_single_panel(
     xlim=None,
     ylim=None,
     ax=None,
-    xcol = None,
-    ycol = None,
+    xcol=None,
+    ycol=None,
     show_legend=True,
     font_add=None,
 ):
-    """
-    Single panel with BOTH morning/afternoon overlaid (scatter + OLS line).
-    Expects df_use includes:
-      - 'period'
-      - x: 'ln_totaldemandoverlanes'
-      - y: 'ln_t_tau'
-    """
     if ax is None:
         import matplotlib.pyplot as plt
         fig, ax = plt.subplots(1, 1, figsize=(6, 4))
 
-    # ---- styling ----
-    TICK  = 12 + font_add
-    LEG   = 8 + font_add
-
+    TICK = 12 + font_add
+    LEG = 8 + font_add
     ax.minorticks_on()
-    ax.grid(True, which="major", linestyle="--", linewidth=1.0, alpha=0.35)
-    ax.grid(True, which="minor", linestyle="-",  linewidth=0.6, alpha=0.15)
-    
+    ax.grid(True, which='major', linestyle='--', linewidth=1.0, alpha=0.35)
+    ax.grid(True, which='minor', linestyle='-', linewidth=0.6, alpha=0.15)
+
     if cfg['temporal_scale'] == 'speedbasedpeak':
-        # if period_include missing, default to these two
-        periods = ["morning-peak", "afternoon-peak"]
-        # in the case when 'period_include' was give as a single string (eg. "off-peak') convert it to ['off-peak']
+        periods = ['morning-peak', 'afternoon-peak']
+    else:
+        periods = cfg['period_include'][cfg['temporal_scale']]
         if isinstance(periods, str):
             periods = [periods]
-    
-        # normalize + order (so legend order is consistent)
-        wanted_order = ["morning-peak", "afternoon-peak"]
-        periods = [p for p in wanted_order if p in periods] + [p for p in periods if p not in wanted_order]
-    elif cfg['temporal_scale'] == 'entireday':
-        periods = ["off-peak"]
-        if isinstance(periods, str):
-            periods = [periods]
-        use_label = not (len(periods) == 1 and periods[0] == "off-peak")
 
-    elif cfg['temporal_scale'] == 'hour':
-        periods = ["off-peak"]
-        if isinstance(periods, str):
-            periods = [periods]
-        use_label = not (len(periods) == 1 and periods[0] == "off-peak")
-        
     handles, labels = [], []
-
     for gname in periods:
-        dfg = df_use[df_use["period"] == gname].copy()
-        dfg = dfg[[xcol, ycol]].dropna()
-        # dfg.to_csv(f"{gname}.csv")
-
+        dfg = df_use[df_use['period'] == gname].copy()
+        dfg = dfg[[xcol, ycol]].replace([np.inf, -np.inf], np.nan).dropna()
         if dfg.empty:
             continue
 
         x = dfg[xcol].to_numpy()
         y = dfg[ycol].to_numpy()
+        sc = ax.scatter(x, y, s=55, alpha=0.55, edgecolors='none', label=gname)
+        pretty = ('AM' if gname == 'morning-peak' else 'PM' if gname == 'afternoon-peak' else 'OLS-fit' if gname == 'off-peak' else gname)
 
-        # scatter (label here so legend picks it up)
-        sc = ax.scatter(x, y, s=55, alpha=0.55, edgecolors="none", label=gname)
+        if len(dfg) >= 2 and np.nanmax(x) > np.nanmin(x):
+            X = sm.add_constant(x)
+            model = sm.OLS(y, X).fit()
+            a, b = model.params[0], model.params[1]
+            r2 = model.rsquared
+            xx = np.linspace(np.nanmin(x), np.nanmax(x), 100)
+            yy = a + b * xx
+            ln, = ax.plot(xx, yy, linewidth=3, color=sc.get_facecolor()[0])
+            labels.append(rf"{pretty}: $y={a:.2f}+{b:.2f}x$, $R^2$={r2:.3f}")
+            handles.append(ln)
+        else:
+            labels.append(f"{pretty}: n={len(dfg)}")
+            handles.append(sc)
 
-        # OLS fit
-        X = sm.add_constant(x)
-        model = sm.OLS(y, X).fit()
-        a, b = model.params[0], model.params[1]
-        r2 = model.rsquared
-
-        # fit line (same color as scatter)
-        xx = np.linspace(np.nanmin(x), np.nanmax(x), 100)
-        yy = a + b * xx
-        ln, = ax.plot(xx, yy, linewidth=3, color=sc.get_facecolor()[0])
-
-        # nicer legend label
-        pretty = ("AM" if gname == "morning-peak" else "PM" if gname == "afternoon-peak" else "OLS-fit" if gname == "off-peak" else gname)
-
-        labels.append(rf"{pretty}: $y={a:.2f}+{b:.2f}x$, $R^2$={r2:.3f}")
-        handles.append(ln)
-
-    # axis limits
     if xlim is not None:
         ax.set_xlim(xlim)
     if ylim is not None:
         ax.set_ylim(ylim)
 
-    # ticks/spines
-    ax.tick_params(axis="both", labelsize=TICK, width=1.8, length=6)
+    ax.tick_params(axis='both', labelsize=TICK, width=1.8, length=6)
     for s in ax.spines.values():
         s.set_linewidth(1.8)
 
-    # legend (use the LINE handles so legend shows fit equations cleanly)
     if show_legend and handles:
-        ax.legend(handles, labels, loc="upper left", fontsize=LEG, frameon=True)
-
+        ax.legend(handles, labels, loc='upper left', fontsize=LEG, frameon=True)
     return ax
+
 
 
 # -
@@ -6026,37 +6749,26 @@ plt.rcParams.update({"figure.dpi": 140})
 # === Configuration ===
 CONFIG_BPR = {
     # 1. Options to choose for every analysis
-    "VDS_list" : ['1203481','1203506','1214006','1205583','1205572','1212611','1205541'],
-    "spatial_scope" : "single" ,      # "multi_vds", "single"
+    # "VDS_list" : ['1203481','1203506','1214006','1205583','1205572','1212611'],  # link-level
+    "VDS_list" : ['C1_BD'],   # network-level 1', 'C1_D2'
+    "spatial_scope" : "network",      # "single", "multi_vds", "network"  <-- toggle here
     "working_f": "01_BPR",
     "temporal_scale": 'speedbasedpeak',    # used in file name "speedbasedpeak", "entireday", "hour", "peakhour"
     
     # 2. Data filter option
     "period_include": {'speedbasedpeak':['morning-peak', 'afternoon-peak'], 'hour': ['off-peak'], 'entireday': ['off-peak']},
-    "drop_days_weird_peak_times": False,
+    "drop_days_weird_peak_times": True,
     "drop_multiplecongestion_days" : False,
-    # Peak rows for BPR: "all" = every peak day; "recurrent" = drop rows in exclusion CSV
-    "peak_subset": "recurrent",
-    # Legacy (used only if peak_subset is omitted): same as peak_subset "recurrent" when True
-    "drop_nonrecurrent_days": True,
-    # Legacy default method suffix; prefer recurrent_peaks["method"]
-    "nonrecurrent_method": "PELT",
-    # Settings for generating/choosing the exclusion file (apply_filters only uses method / exclusion_csv)
-    "recurrent_peaks": {
-        "method": "PELT",
-        "exclusion_csv": None,
-        "PELT": {"pen": 20, "min_size": 1, "jump": 1, "length_threshold_weeks": 4},
-        "clustering": {},
-        "2DKDE": {
-            "band_hours": 0.5,
-            "min_mode_count": 4,
-            "min_mode_frac": 0.10,
-            "include_non_peak_in_kde": True,
-        },
-        "simpleband": {"bandwidth_method": "se", "bandwidth_minutes": 45},
-    },
+    "drop_nonrecurrent_days" : False,
+    "recurrent_output_tag": "shortestinterval_morning_both_s90_e95_afternoon_end90",
+    "recurrent_output_path": None,
+    "segment_aggregation": False,
+    "segment_min_weeks_by_period": {"morning-peak": 2, "afternoon-peak": 2},
+    "bandwidth_method": 'se', # for 'se' or 'be'
+    "bandwidth": 45, #minutes
+    "nonrecurrent_method": 'shortest_interval', #PELT or clustering or 2DKDE or simpleband
     "morning_earliest": "03:00",
-    "afternoon_latest": "22:00",
+    "afternoon_latest": "21:00",
     "dayofweek_exclude": [],
     "month_exclude": [],
     "year_exclude": [],
@@ -6071,8 +6783,10 @@ CONFIG_BPR = {
     'file_path': '/Users/jooneuihong/Library/CloudStorage/OneDrive-UCIrvine/14 Github/01_BPR',
     
     # 4. Regression_info & plot
-    "free_tt_offpeak_avg": {'1203481': 60*(1/64), '1203506': 60*(1/(63)), '1214006': 60*(1/(65)),'1205583': 60*(1/(66)),'1205572': 60*(1/(67)), '1212611': 60*(1/(65)),'1205541': 60*(1/(61)),'multi_vds': 60*(1/(64))},   # minutes/mile when mode=="fixed" (60*1/freeflow_speed),
-    # "free_tt_offpeak_avg": {'1203481': 60*(1/61), '1203506': 60*(1/(61)), '1214006': 60*(1/(65)),'1205583': 60*(1/(66)),'1205572': 60*(1/(67)), '1212611': 60*(1/(65)),'1205541': 60*(1/(61)),'multi_vds': 60*(1/(64))},   # minutes/mile when mode=="fixed" (60*1/freeflow_speed),
+    "free_tt_offpeak_avg": {'1203481': 60*(1/64), '1203506': 60*(1/(63)), '1214006': 60*(1/(65)),'1205583': 60*(1/(66)),'1205572': 60*(1/(67)), '1212611': 60*(1/(65)),'1205541': 60*(1/(61)),'multi_vds': 60*(1/(64)),
+                            'C1_D1': 60*(1/65), 'C1_D2': 60*(1/65)},  # min/km (v_f=65 km/h) (60*1/freeflow_speed),
+    # "free_tt_offpeak_avg": {'1203481': 60*(1/61), '1203506': 60*(1/(61)), '1214006': 60*(1/(65)),'1205583': 60*(1/(66)),'1205572': 60*(1/(67)), '1212611': 60*(1/(65)),'1205541': 60*(1/(61)),'multi_vds': 60*(1/(64)),
+                            # 'C1_D1': 60*(1/65), 'C1_D2': 60*(1/65)},  # min/km (v_f=65 km/h) (60*1/freeflow_speed),
     "VDS_label_list" : {'1203481': 'SR-91 WB','1203506': 'SR-91 EB','1214006': 'I-5 SB-1','1205583':'I-5 SB-2','1205572':'I-5 SB-3','1212611':'I-5 SB-4','1205541':'I-5 SB-5'},
     'free_tt_FD': {'1203506': 60*(1/55), '1203524': 60*(1/55), '1203481': 60*(1/55), '1205541': 60*(1/57), '1212611': 60*(1/57), '1205572': 60*(1/57), '1205583': 60*(1/57), '1214006': 60*(1/57), 'multi_vds': 60*(1/57)},
 
@@ -6091,52 +6805,86 @@ os.makedirs(CONFIG_BPR["save_dir"], exist_ok=True)
 
 # + editable=true slideshow={"slide_type": ""}
 # title name
-if (CONFIG_BPR["temporal_scale"] == 'speedbasedpeak'):
-    suptitle_var = "Log-Transformed BPR Function (Peak-Period Aggregation)"
-elif (CONFIG_BPR["temporal_scale"] == "entireday"):
-    suptitle_var = "Log-Transformed BPR Function (Entire-Day Aggregation)"
-elif (CONFIG_BPR["temporal_scale"] == 'hour'):
-    suptitle_var = "Log-Transformed BPR Function (Hourly Aggregation)"
-elif (CONFIG_BPR["temporal_scale"] == 'peakhour'):
-    suptitle_var = "Log-Transformed BPR Function (Peak-Hour)"
+if CONFIG_BPR['temporal_scale'] == 'speedbasedpeak':
+    suptitle_var = 'Log-Transformed BPR Function (Peak-Period Aggregation)'
+elif CONFIG_BPR['temporal_scale'] == 'entireday':
+    suptitle_var = 'Log-Transformed BPR Function (Entire-Day Aggregation)'
+elif CONFIG_BPR['temporal_scale'] == 'hour':
+    suptitle_var = 'Log-Transformed BPR Function (Hourly Aggregation)'
+elif CONFIG_BPR['temporal_scale'] == 'peakhour':
+    suptitle_var = 'Log-Transformed BPR Function (Peak-Hour)'
 
-# plot range
-if (CONFIG_BPR["temporal_scale"] == 'entireday'):
-    xlim_list=[[11.2, 11.6],[11, 11.8],[10.9, 11.4],[11.1, 11.8],[11.4, 11.8],[11.6, 12.1],[11.4, 11.8]]
-    ylim=[-6.1, 1.5]
-elif (CONFIG_BPR["temporal_scale"] == 'speedbasedpeak'):
-    xlim_list=[[6.5, 11]]; ylim=[-3.5, 3]
-elif (CONFIG_BPR["temporal_scale"] == 'hour'):
-    xlim_list=[[4.5, 8]]; ylim=[-15, 10]
-elif (CONFIG_BPR["temporal_scale"] == 'peakhour'):
-    xlim_list=[[6, 8]]; ylim=[-8, 5]
+if CONFIG_BPR['temporal_scale'] == 'entireday':
+    xlim_list = [[11.2, 11.6], [11, 11.8], [10.9, 11.4], [11.1, 11.8], [11.4, 11.8], [11.6, 12.1], [11.4, 11.8]]
+    ylim = [-6.1, 1.5]
+elif CONFIG_BPR['temporal_scale'] == 'speedbasedpeak':
+    xlim_list = [[6.5, 11]]
+    ylim = [-3.5, 3]
+elif CONFIG_BPR['temporal_scale'] == 'hour':
+    xlim_list = [[4.5, 8]]
+    ylim = [-15, 10]
+elif CONFIG_BPR['temporal_scale'] == 'peakhour':
+    xlim_list = [[6, 8]]
+    ylim = [-8, 5]
 
-# out_file name
-_peak_tag = CONFIG_BPR.get("peak_subset") or (
-    "recurrent" if CONFIG_BPR.get("drop_nonrecurrent_days") else "all"
-)
-out_name = (
-    f"BPR_V3_ALL_3x3_{CONFIG_BPR['temporal_scale']}_{CONFIG_BPR['period_include']}_"
-    f"{CONFIG_BPR['free_tt_method']}_{_peak_tag}"
-)
+if CONFIG_BPR['drop_nonrecurrent_days']:
+    recurrent_tag = CONFIG_BPR.get('recurrent_output_tag', build_default_recurrent_output_tag_from_bpr(CONFIG_BPR))
+    out_name = f"BPR_V3_{CONFIG_BPR['temporal_scale']}_{CONFIG_BPR['nonrecurrent_method']}_{recurrent_tag}_{CONFIG_BPR['period_include']}_{CONFIG_BPR['free_tt_method']}"
+else:
+    out_name = f"BPR_V3_{CONFIG_BPR['temporal_scale']}_{CONFIG_BPR['period_include']}_{CONFIG_BPR['free_tt_method']}"
+if CONFIG_BPR.get('segment_aggregation'):
+    out_name = f"{out_name}_segmentagg"
 
 c_lane_num = {
-    '1212611':[1,2,3,4,5,6], '1205572':[1,2,3,4,5,6], '1205583':[1,2,3,4,5,6],
-    '1203506':[1,2,3,4], '1214006':[1,2,3,4], '1205541':[1,2,3,4],
-    '1203589':[1,2,3,4], '1203615':[1,2,3,4], '1203524': [1,2,3,4], '1203481': [1,2,3,4]
+    '1212611': [1, 2, 3, 4, 5, 6], '1205572': [1, 2, 3, 4, 5, 6], '1205583': [1, 2, 3, 4, 5, 6],
+    '1203506': [1, 2, 3, 4], '1214006': [1, 2, 3, 4], '1205541': [1, 2, 3, 4],
+    '1203589': [1, 2, 3, 4], '1203615': [1, 2, 3, 4], '1203524': [1, 2, 3, 4], '1203481': [1, 2, 3, 4],
 }
 
 plot_bpr_all_in_one_png_3x3(
     cfg=CONFIG_BPR,
-    version_key="v3",
+    version_key='v3',
     xlim=xlim_list,
     ylim=ylim,
     suptitle=suptitle_var,
     out_name=out_name,
-    font_add = 5,
-    show_legend_only_first=False  # set True if you want ONLY the first legend
+    font_add=5,
+    show_legend_only_first=False,
 )
+
 # -
+# ### (Code) Merged recurrent/BPR helpers
+# Use the unified `CONFIG_RC` / `run_recurrent_peak_pipeline` and `CONFIG_BPR` / `plot_bpr_all_in_one_png_3x3` cells above.
+#
+
+# Legacy prototype cell intentionally disabled in this notebook copy.
+
+
+# Legacy prototype cell intentionally disabled in this notebook copy.
+
+
+# Legacy prototype cell intentionally disabled in this notebook copy.
+
+
+# Legacy prototype cell intentionally disabled in this notebook copy.
+
+
+# ### (Code) Legacy simpleband grid-search prototype
+# Kept disabled in this notebook copy because the merged framework above replaces it.
+#
+
+# Legacy prototype cell intentionally disabled in this notebook copy.
+
+
+# Legacy prototype cell intentionally disabled in this notebook copy.
+
+
+# Legacy prototype cell intentionally disabled in this notebook copy.
+
+
+# Legacy prototype cell intentionally disabled in this notebook copy.
+
+
 # ## (Code) QQ-curve and residual curve
 
 # +
@@ -6713,9 +7461,9 @@ def plot_totaldemand_histogram_all_in_one_png_3x3(
 plot_totaldemand_histogram_all_in_one_png_3x3(CONFIG_BPR, bins=25, density=True)
 
 
-# + [markdown] jp-MarkdownHeadingCollapsed=true
-# #### (Version1) ln(Avgflow)-ln(traveltimes)
 # -
+
+# #### (Version1) ln(Avgflow)-ln(traveltimes)
 
 # - $z(r)=\zeta(1+\alpha r^\beta)$
 # - $z(r)=\zeta[1+\alpha (\frac{q}{WC/T})^\beta]=\zeta(1+\tilde{\alpha} q^\beta)$
@@ -6724,10 +7472,8 @@ plot_totaldemand_histogram_all_in_one_png_3x3(CONFIG_BPR, bins=25, density=True)
 # - $y_n = ln(\tilde{\alpha})+\beta x_n$
 #
 
-# + [markdown] jp-MarkdownHeadingCollapsed=true
 # #### (Version2) ln(traveldemand)-ln(traveltimes)
 
-# + [markdown] jp-MarkdownHeadingCollapsed=true
 # - $z(r)=\zeta(1+\alpha r^\beta)$
 # - $z(r)=\zeta[1+\alpha (\frac{q}{WC/T})^\beta]=\zeta(1+\tilde{\alpha} (Tq)^\beta)=\zeta(1+\tilde{\alpha} N^\beta)$
 #     - where $\tilde{\alpha}=\frac{\alpha}{(WC)^\beta}, N = Tq$
@@ -6736,7 +7482,6 @@ plot_totaldemand_histogram_all_in_one_png_3x3(CONFIG_BPR, bins=25, density=True)
 # - parameter calibration
 #     -  $\tilde{\alpha}' = ln(\tilde{\alpha})=ln(\frac{\alpha}{(WC)^\beta})$
 #     -  $\alpha = \exp(\tilde{\alpha}')\times (WC)^\beta$
-# -
 
 # - $z(r)=\zeta[1+\alpha (\frac{qTl}{WC})^\beta]=\zeta(1+\tilde{\alpha} (Tql)^\beta)=\zeta(1+\tilde{\alpha} N^\beta)$
 #     - where $\tilde{\alpha}=\frac{\alpha}{(WC)^\beta}, N = Tql$
@@ -6745,9 +7490,7 @@ plot_totaldemand_histogram_all_in_one_png_3x3(CONFIG_BPR, bins=25, density=True)
 #     -  $\tilde{\alpha}' = ln(\tilde{\alpha})=ln(\frac{\alpha}{(WC)^\beta})$
 #     -  $\alpha = \exp(\tilde{\alpha}')\times (WC)^\beta$
 
-# + [markdown] jp-MarkdownHeadingCollapsed=true
 # #### (Version3) Inverse ln(Avgdemand) vs ln(traveltimes)
-# -
 
 # - $z(r)=\zeta(1+\alpha r^\beta)$
 # - $z(r)=\zeta[1+\alpha (\frac{q}{WC/T})^\beta]=\zeta(1+\tilde{\alpha} (Tq)^\beta)=\zeta(1+\tilde{\alpha} N^\beta)$
@@ -6756,7 +7499,7 @@ plot_totaldemand_histogram_all_in_one_png_3x3(CONFIG_BPR, bins=25, density=True)
 # - $-ln(\frac{z(r)}{\zeta}-1)=-ln(\tilde{\alpha})-\beta ln(N)$
 # - $ln((\frac{z(r)}{\zeta}-1)^{-1})=ln(\frac{1}{\tilde{\alpha}})  -\beta ln(N)$
 
-# + [markdown] jp-MarkdownHeadingCollapsed=true editable=true slideshow={"slide_type": ""}
+# + [markdown] editable=true slideshow={"slide_type": ""}
 # #### (version4) speed dependent 
 # -
 
@@ -6767,9 +7510,7 @@ plot_totaldemand_histogram_all_in_one_png_3x3(CONFIG_BPR, bins=25, density=True)
 # - $-ln(\frac{z(r)}{\zeta(r)}-1)=-ln(\tilde{\alpha})-\beta ln(N)$
 # - $ln((\frac{z(r)}{\zeta(r)}-1)^{-1})=ln(\frac{1}{\tilde{\alpha}})  -\beta ln(N)$
 
-# + [markdown] jp-MarkdownHeadingCollapsed=true
 # #### (Version5) total demand with time-window size
-# -
 
 # - $z(r)=\zeta(1+\alpha r^\beta)$
 # - $r=\frac{N}{lCW}=\frac{N/l}{CW}$
@@ -6788,9 +7529,7 @@ plot_totaldemand_histogram_all_in_one_png_3x3(CONFIG_BPR, bins=25, density=True)
 
 # ### Previous version
 
-# + [markdown] jp-MarkdownHeadingCollapsed=true
 # #### Version1: natural log of average flow-rate
-# -
 
 # - $z(r)=\zeta(1+\alpha r^\beta)$
 #     - $\zeta$: free-flow traveltimes (min/mile)
@@ -6818,9 +7557,7 @@ plot_totaldemand_histogram_all_in_one_png_3x3(CONFIG_BPR, bins=25, density=True)
 # - This means that the core of the peak period—the most congested part—becomes longer as the congestion extends.
 # - As a result, average travel times rise, and average flow rates fall.
 
-# + [markdown] jp-MarkdownHeadingCollapsed=true
 # #### fitting method: 
-# -
 
 # Minimize the **Sum of Squared Residuals (SSR)**:
 # $SSR(b_0, b_1) = \sum_{i=1}^{n} \left[ y_i - (b_0 + b_1 x_i) \right]^2$
@@ -6844,9 +7581,7 @@ plot_totaldemand_histogram_all_in_one_png_3x3(CONFIG_BPR, bins=25, density=True)
 # - LM interpolates between **gradient descent** (large $\lambda$) and **Gauss–Newton** (small $\lambda$), ensuring both stability and fast convergence.
 #
 
-# + [markdown] jp-MarkdownHeadingCollapsed=true
 # #### Version2: natural log of total demand
-# -
 
 # - $z(r)=\zeta(1+\alpha r^\beta)$
 # - $z(r)=\zeta[1+\alpha (\frac{q}{WC/T})^\beta]=\zeta(1+\tilde{\alpha} (Tq)^\beta)=\zeta(1+\tilde{\alpha} N^\beta)$
@@ -6861,9 +7596,7 @@ plot_totaldemand_histogram_all_in_one_png_3x3(CONFIG_BPR, bins=25, density=True)
 
 # <img src='./01_BPR/02_1_presentation_fig/BPR_calibration_v2.png' width=70%>
 
-# + [markdown] jp-MarkdownHeadingCollapsed=true
 # #### Version3: inverse natural log of total demand
-# -
 
 # - Calibration result
 #     - $\zeta = 1min/mile (60mph)$
@@ -6887,7 +7620,6 @@ plot_totaldemand_histogram_all_in_one_png_3x3(CONFIG_BPR, bins=25, density=True)
 # - <img src='./01_BPR/02_1_presentation_fig/BPR_VDS1203506_bothperiods.png' width=10%>
 # - <img src='./01_BPR/02_1_presentation_fig/BPR_VDS1203506_mor.png' width=10%>
 
-# + [markdown] jp-MarkdownHeadingCollapsed=true
 #
 # <div class="alert alert-danger">
 # - *I need to eliminate the off-peak data
@@ -6900,17 +7632,13 @@ plot_totaldemand_histogram_all_in_one_png_3x3(CONFIG_BPR, bins=25, density=True)
 #     - since Cases 2, 3, and 4 are methodologically more robust.
 #     - Case 2,3,4 shows simliar to entire-day case.
 
-# + [markdown] jp-MarkdownHeadingCollapsed=true
 # <img src='./01_BPR/02_1_presentation_fig/Speedbased_method_BPR_comparison.png' width=10%>
-# -
 
 # <img src='./01_BPR/02_1_presentation_fig/BPR_calibration_v3.png' width=50%>
 
 # <img src='./01_BPR/02_1_presentation_fig/BPR_calibration_v4.png' width=30%>
 
-# + [markdown] jp-MarkdownHeadingCollapsed=true
 # ##### Trials for model fitting improvment (e.g., R-squared)
-# -
 
 # ##### Measures for model fitting
 
@@ -6922,9 +7650,7 @@ plot_totaldemand_histogram_all_in_one_png_3x3(CONFIG_BPR, bins=25, density=True)
 #     - $\text{RMSE} = \sqrt{\frac{1}{n} \sum_{i=1}^{n} (y_i - \hat{y}_i)^2}$
 #     - $\text{MAPE} = \frac{100}{n} \sum_{i=1}^n |\frac{y_i - \hat{y_i}}{y_i}|$
 
-# + [markdown] jp-MarkdownHeadingCollapsed=true
 # **Derivation of the OLS Intercept**
-# -
 
 # - $\hat\beta_0 = \bar y - \hat\beta_1 \bar x.$x
 #
@@ -6972,15 +7698,11 @@ plot_totaldemand_histogram_all_in_one_png_3x3(CONFIG_BPR, bins=25, density=True)
 
 # #### daily-basis BPR function estimate
 
-# + [markdown] jp-MarkdownHeadingCollapsed=true
 # #### daily average flowrate
-# -
 
 # <img src='./01_BPR/02_1_presentation_fig/BPR_daily average flow.png' width=80%>
 
-# + [markdown] jp-MarkdownHeadingCollapsed=true
 # #### Jin (2025): weighted average of ideal arrival time window
-# -
 
 # - $z/\zeta = 1+\alpha (\frac{N}{lC\tilde{W}})^\beta$
 #     - $\xi_j=\frac{D_j}{D}$, where $D=\sum_{j=1}^J D_j$
@@ -6991,10 +7713,8 @@ plot_totaldemand_histogram_all_in_one_png_3x3(CONFIG_BPR, bins=25, density=True)
 # - $W_1=W_2=1\text{hours}$, $W_3=\infty$
 # - $\beta = 4$
 
-# + [markdown] jp-MarkdownHeadingCollapsed=true
 # - higher R-sqaured
 # <img src='./01_BPR/02_1_presentation_fig/BPR_daily_jin_2025.png' width=100%>
-# -
 
 # #### BPR calibration based on different temporal scales
 
@@ -7017,7 +7737,6 @@ plot_totaldemand_histogram_all_in_one_png_3x3(CONFIG_BPR, bins=25, density=True)
 #
 #
 
-# + [markdown] jp-MarkdownHeadingCollapsed=true
 # - On 6/2, we discussed testing fixed-time peak periods:
 #     - Morning peak: 4:00–10:00
 #     - Afternoon peak: 16:00–22:00
@@ -7031,7 +7750,6 @@ plot_totaldemand_histogram_all_in_one_png_3x3(CONFIG_BPR, bins=25, density=True)
 # - __this pattern shows somewhat clear FD shape, not sure how to interpret this result__
 # - <img src='./01_BPR/02_1_presentation_fig/Daily_flow_vs_time_peak_1205583.png' width=60%>
 #
-# -
 
 # <div class="alert alert-danger">
 #
@@ -7040,7 +7758,6 @@ plot_totaldemand_histogram_all_in_one_png_3x3(CONFIG_BPR, bins=25, density=True)
 #     - why?) Because the congestion period alone doesn’t capture distributional information—like the full-day volume—which is critical for explaining travel times.
 #     - fixed와 unfixed가 근본적인 차이같어. 이와 관련한 이유를 제시해야할 것 같은데?
 
-# + [markdown] jp-MarkdownHeadingCollapsed=true
 # <div class='alert alert-danger'>
 #
 # - __All-day case__
@@ -7055,7 +7772,6 @@ plot_totaldemand_histogram_all_in_one_png_3x3(CONFIG_BPR, bins=25, density=True)
 #     
 # - <center> <img src="https://github.com/jooneui/fig_collection/blob/main/AADT_2013-2024.png?raw=true", width = 40%> </center>
 # </div>
-# -
 
 # - <img src='./01_BPR/proj2_Qinlong_2018.png' width=50%>
 # - Figure: Yan et al. (2018)
@@ -7737,13 +8453,10 @@ for i, file_name in enumerate(file_list):
 
 # - imputation: 5min (30se)
 
-# + [markdown] jp-MarkdownHeadingCollapsed=true
 # ## Pipeline Steps with Manual check
 
-# + [markdown] jp-MarkdownHeadingCollapsed=true
 #
 # - <img src='./01_BPR/02_1_presentation_fig/2_Data_process_flowchart.png' width=90%>  
-# -
 
 # - Discussion about 'capping'
 #     - I capped unrealistic 5-min aggregated speed estimates at 80 mph. Such inflated values can bias average speeds across periods. They may arise from measurement errors or from applying g-factors on an hourly basis, which is a relatively coarse interval. I believe it makes more sense to correct these unrealistic values to a realistic level that still reflects free-flow speeds.
