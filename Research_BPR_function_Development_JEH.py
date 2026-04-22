@@ -45,49 +45,49 @@ sys.path.append('../src')
 #             - need to be very careful
 #         - Complement the use of CV with an additional variable that can capture the pattern of time-interval CVs, which may provide more insights into the variability of traffic flows.
 
-# <div class="alert alert-info">
-#
-#
-# <font size = 5> PhD dissertation topics </font>
-#
-# __Theme__: Understanding demand-supply relationships and using this knowledge to improve system performance
-#     
-# 1. Filter out the dataset from malfunctioning sensors
-#     - Establish a range of CV values for accurately functioning sensors
-#     - Evaluate how the time-space domain size matters the CV range
-#     
-# 2. Analyze the relationship between observed demand and potential demand using the BPR function
-#     - How different time periods and traffic conditions affect this relationship by calibrating key parameters
-#     - __2.1. Travel demand vs Equilibrium-state demand__
-#         - $\bar{t}=\frac{1}{\bar{v}}=t_0[1+\alpha(\frac{N}{C})^\beta]$ ($N=qT$)
-#             - N: Traffic volume (vehs)
-#             - q: Traffic flow rates (vph)
-#             - T: Time period (hours)
-#         - $N= \begin{cases} \bar{q} \cdot T \text{ (if T covers off-peak period or all-day) } \\ \bar{q} \cdot T(N) \text{ (if T covers peak period)} \end{cases}$
-#             - The gap between potential demand and observed demand during peak periods creates excess demand, which then spills over into other time periods.
-#             - but, why potential demand needs to be considered in the BPR function?
-#             - <img src='https://github.com/jooneui/fig_collection/blob/main/BPR%20concept.jpg?raw=true' width=30%>
-#     - __2.2. Reveal demand & supply relationship__
-#         - Determine $\alpha, \beta$ of BPR-function.
-# 3. Analyze the interaction in Mixed Traffic Systems:
-#     - HOV vs GP / HOV vs HOT / HOT vs GP
-#         - Based on individual-purpose lane's potential/observed demands, analyze how they interact until the equilibrium state.
-#         - How to avoid compromising the performance of general-purpose lanes in the process
-#             - when HOV/HOT lanes are underutilitzed and GP lanes are overburdened.
-#     - AV exclusive vs GP lanes
-#     - * As transportation shifts towards service instead of infrastructure where competition exists between similaar services, understanding how cost influences travel choices will become more important.
-# 4. Extend the relationship to the network level using Bathtub models
-#     - HOV/HOT lane is not confined to one segment, but rather covers network level.
-#     - The determined BPR parameter determines the shape of F.D., which can be applied to the bathtub models.
-# 5. Deep Learning: Dynamic tolling system
-#     - Great tool with fundamental principle
-#
-# - My objective during phd
-#     - I want to develop model or framework that depict the macroscopic relationship between demand and supply
-#         - Extension of BPR function
-#         - Bathtub model
-#         - Deep learning (data-based)
-# </div>
+# <!-- # <div class="alert alert-info">
+# #
+# #
+# # <font size = 5> PhD dissertation topics </font>
+# #
+# # __Theme__: Understanding demand-supply relationships and using this knowledge to improve system performance
+# #     
+# # 1. Filter out the dataset from malfunctioning sensors
+# #     - Establish a range of CV values for accurately functioning sensors
+# #     - Evaluate how the time-space domain size matters the CV range
+# #     
+# # 2. Analyze the relationship between observed demand and potential demand using the BPR function
+# #     - How different time periods and traffic conditions affect this relationship by calibrating key parameters
+# #     - __2.1. Travel demand vs Equilibrium-state demand__
+# #         - $\bar{t}=\frac{1}{\bar{v}}=t_0[1+\alpha(\frac{N}{C})^\beta]$ ($N=qT$)
+# #             - N: Traffic volume (vehs)
+# #             - q: Traffic flow rates (vph)
+# #             - T: Time period (hours)
+# #         - $N= \begin{cases} \bar{q} \cdot T \text{ (if T covers off-peak period or all-day) } \\ \bar{q} \cdot T(N) \text{ (if T covers peak period)} \end{cases}$
+# #             - The gap between potential demand and observed demand during peak periods creates excess demand, which then spills over into other time periods.
+# #             - but, why potential demand needs to be considered in the BPR function?
+# #             - <img src='https://github.com/jooneui/fig_collection/blob/main/BPR%20concept.jpg?raw=true' width=30%>
+# #     - __2.2. Reveal demand & supply relationship__
+# #         - Determine $\alpha, \beta$ of BPR-function.
+# # 3. Analyze the interaction in Mixed Traffic Systems:
+# #     - HOV vs GP / HOV vs HOT / HOT vs GP
+# #         - Based on individual-purpose lane's potential/observed demands, analyze how they interact until the equilibrium state.
+# #         - How to avoid compromising the performance of general-purpose lanes in the process
+# #             - when HOV/HOT lanes are underutilitzed and GP lanes are overburdened.
+# #     - AV exclusive vs GP lanes
+# #     - * As transportation shifts towards service instead of infrastructure where competition exists between similaar services, understanding how cost influences travel choices will become more important.
+# # 4. Extend the relationship to the network level using Bathtub models
+# #     - HOV/HOT lane is not confined to one segment, but rather covers network level.
+# #     - The determined BPR parameter determines the shape of F.D., which can be applied to the bathtub models.
+# # 5. Deep Learning: Dynamic tolling system
+# #     - Great tool with fundamental principle
+# #
+# # - My objective during phd
+# #     - I want to develop model or framework that depict the macroscopic relationship between demand and supply
+# #         - Extension of BPR function
+# #         - Bathtub model
+# #         - Deep learning (data-based)
+# # </div> -->
 
 # + [markdown] tags=["notes"]
 # <font size = 5> Word Use </font>:
@@ -3031,6 +3031,9 @@ print(np.mean(ucl_Vangel))
 #     
 #     
 # </div>
+# -
+
+
 
 # + hide_input=false tags=["code"]
 # Parameters for handling the data
@@ -3039,7 +3042,7 @@ print(np.mean(ucl_Vangel))
 raw_timeframe = 0.5
 
 # path: The base directory path where the raw data files are stored.
-path = '/Users/jooneuihong/Library/CloudStorage/OneDrive-UCIrvine/14 Github/BPR/11 Rawdata'
+path = '/Users/jooneuihong/Library/CloudStorage/OneDrive-UCIrvine/14 Github/01_BPR/11 Rawdata'
 
 # directory: The subdirectory name under the main path where the data files are located.
 directory = '30sec'
@@ -3052,7 +3055,7 @@ full_path = os.path.join(path, directory, VDS_num)
 
 # Retrieves a list of all files in the specified directory.
 # This list will be used to iterate over or reference the data files for processing.
-file_list = os.listdir(full_path)
+file_list = [f for f in os.listdir(full_path) if f.endswith('.xlsx')]
 
 # total_lane_raw: Total number of lanes at the rawdata
 # lane_num: Specifies the range of lane numbers to be analyzed.
@@ -3073,7 +3076,7 @@ def rawdata_setting(directory,VDS_num,file_name,lane_num):
     Upload raw-data and standardize the settings
     """
     
-    rawdata = pd.read_excel("./11 Rawdata/%s/%s/%s" % (directory,VDS_num,file_name))
+    rawdata = pd.read_excel("./01_BPR/11 Rawdata/%s/%s/%s" % (directory,VDS_num,file_name))
     
     rawdata.columns = ['time'] + [f'flow_{i}' for i in lane_num] + [f'occ_{i}' for i in lane_num]
 
@@ -3566,7 +3569,7 @@ columns += ['cv_flow_day', 'cv_density_day', 'cv_speed_day', 'cv_flow_day_v2','c
 df_daily_measure = pd.DataFrame(columns=columns)
 
 for i, file_name in enumerate(file_list):
-    # print(file_name)
+    print(file_name)
     
     # Step 0: uploading data and unifying rawdata's format
     cv_threshold = 0.123
