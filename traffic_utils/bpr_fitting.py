@@ -117,6 +117,64 @@ def build_excluded_recurrent_days_path(cfg: dict) -> str:
     return f"./05_recurrent_peak_result/excluded_recurrent_days_{tag}.csv"
 
 
+def build_labeled_recurrent_days_path(cfg: dict) -> str:
+    """Return the path to the labeled recurrent days CSV for the current cfg."""
+    tag = cfg.get('recurrent_output_tag') or build_default_recurrent_output_tag_from_bpr(cfg)
+    return f"./05_recurrent_peak_result/recurrent_days_labeled_{tag}.csv"
+
+
+def merge_segment_id(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
+    """Merge segment_id from the labeled recurrent output into the BPR data.
+
+    This ensures that adjacent retained segments with different RDP breakpoints
+    are kept separate during aggregation, instead of being merged into one
+    continuous group.
+    """
+    labeled_path = build_labeled_recurrent_days_path(cfg)
+    if not os.path.exists(labeled_path):
+        print(f'[merge_segment_id] Labeled file not found: {labeled_path}, skipping merge')
+        return df
+
+    df_labeled = pd.read_csv(labeled_path)
+    if 'vds_id' in df_labeled.columns:
+        df_labeled = df_labeled[df_labeled['vds_id'].astype(str) == str(cfg.get('VDS_num', ''))]
+
+    if 'segment_id' not in df_labeled.columns:
+        print('[merge_segment_id] No segment_id column in labeled file, skipping merge')
+        return df
+
+    # Normalize date column in the labeled file
+    if 'date' not in df_labeled.columns and 'date_dt' in df_labeled.columns:
+        df_labeled['date'] = pd.to_datetime(df_labeled['date_dt'], errors='coerce').dt.strftime('%y%m%d')
+    if 'date' in df_labeled.columns:
+        df_labeled['date'] = df_labeled['date'].astype(str).str.replace(r'\.0$', '', regex=True).str.zfill(6)
+
+    # Only keep rows with segment_id (retained segments) and needed columns
+    seg_cols = [c for c in ['date', 'period', 'dayofweek', 'week_num', 'vds_id', 'segment_id'] if c in df_labeled.columns]
+    df_seg = df_labeled[seg_cols].dropna(subset=['segment_id']).drop_duplicates()
+
+    if df_seg.empty:
+        return df
+
+    # Merge on matching keys
+    work = df.copy()
+    work['date'] = work['date'].astype(str)
+    merge_on = [c for c in ['date', 'period', 'dayofweek'] if c in work.columns and c in df_seg.columns]
+    if not merge_on:
+        print('[merge_segment_id] No matching merge columns, skipping merge')
+        return df
+
+    # Drop existing segment_id if it exists (from a stale merge)
+    if 'segment_id' in work.columns:
+        work = work.drop(columns=['segment_id'])
+
+    work = work.merge(df_seg[['segment_id'] + merge_on], on=merge_on, how='left')
+
+    n_with_seg = work['segment_id'].notna().sum()
+    print(f'[merge_segment_id] Merged segment_id: {n_with_seg}/{len(work)} rows have segment_id')
+    return work
+
+
 # === Load + annotate once ===
 def load_and_annotate(cfg: dict) -> pd.DataFrame:
     fp = build_file_path(cfg)
@@ -224,8 +282,21 @@ def aggregate_segment_level_bpr(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
             continue
         for day, g in dfl.groupby('dayofweek', dropna=False):
             g = g.sort_values(['week_num', 'date_dt']).copy()
-            g['segment_id'] = (g['week_num'].diff().fillna(1).ne(1)).cumsum() + 1
-            for segment_id, seg in g.groupby('segment_id', dropna=False):
+            # If segment_id is provided by the recurrent detection (RDP_v),
+            # use it to keep adjacent retained segments separate.
+            # Otherwise, fall back to grouping by consecutive week_num gaps.
+            if 'segment_id' in g.columns:
+                # segment_id from RDP_v: keep only rows in retained segments,
+                # then group by segment_id so adjacent retained segments
+                # are NOT merged into one.
+                g_retained = g.dropna(subset=['segment_id']).copy()
+                g_retained['segment_id'] = g_retained['segment_id'].astype(int)
+                grouped = g_retained.groupby('segment_id', dropna=False)
+            else:
+                # No segment_id from pipeline: fall back to consecutive week gaps
+                g['segment_id'] = (g['week_num'].diff().fillna(1).ne(1)).cumsum() + 1
+                grouped = g.groupby('segment_id', dropna=False)
+            for segment_id, seg in grouped:
                 min_weeks = int(min_weeks_map.get(period, 2))
                 if len(seg) < min_weeks:
                     continue
@@ -378,6 +449,11 @@ def apply_filters(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
 
     if cfg.get('drop_nonrecurrent_days'):
         df = _apply_nonrecurrent_exclusion(df, cfg)
+
+    # Merge segment_id from recurrent detection output (keeps adjacent retained
+    # segments separate instead of merging them into one continuous group)
+    if cfg.get('recurrent_method') == 'RDP_v' or cfg.get('recurrent_output_tag', '').startswith('RDP_v'):
+        df = merge_segment_id(df, cfg)
 
     df_f = to_categorical_day(df.copy())
     df_f.to_csv("final_dates.csv")

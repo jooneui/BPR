@@ -627,6 +627,7 @@ def classify_facet_rdpv(
     out = facet_df.copy()
     out['recurrent_band'] = False
     out['excluded_band'] = False
+    out['segment_id'] = np.nan   # will be set per retained segment
 
     meta = {
         'method': 'RDP_v',
@@ -841,14 +842,15 @@ def classify_facet_rdpv(
     meta['breakpoint_weeks'] = [float(out.loc[b, 'week_num']) for b in all_bkpts ]
 
     # ── Step 5 & 6: Filter segments and label weeks ─────────────────────
-    boundaries = all_bkpts 
+    boundaries = all_bkpts
     segments = []
     for i in range(len(boundaries) - 1):
-        seg_start = boundaries[i] + 1 
+        seg_start = boundaries[i] + 1
         seg_end = boundaries[i + 1] + 1
-        
+
         peak_count = int(is_peak_week[seg_start:seg_end].sum())
         retained = peak_count >= segment_min_weeks
+        seg_id = i  # unique segment index within this facet
 
         # Get week_num range for this segment (for draw_rdpv_band)
         if seg_start < seg_end:
@@ -871,22 +873,28 @@ def classify_facet_rdpv(
             'retained': retained,
             'start_week': start_week,
             'end_week': end_week,
-            #'peak_weeks': peak_week_list,
+            'segment_id': seg_id,
         })
 
         # Label each row in this segment
         for row_idx in range(seg_start, seg_end):
-            if is_peak_week[row_idx]:
-                if retained:
+            if retained:
+                # Retained segment: all rows (peak and no-peak) get segment_id
+                out.loc[row_idx, 'segment_id'] = seg_id
+                if is_peak_week[row_idx]:
                     out.loc[row_idx, 'recurrent_band'] = True
                     out.loc[row_idx, 'excluded_band'] = False
                 else:
                     out.loc[row_idx, 'recurrent_band'] = False
-                    out.loc[row_idx, 'excluded_band'] = True
+                    out.loc[row_idx, 'excluded_band'] = False
             else:
-                # No-peak rows: neither recurrent nor excluded
-                out.loc[row_idx, 'recurrent_band'] = False
-                out.loc[row_idx, 'excluded_band'] = False
+                # Excluded segment
+                if is_peak_week[row_idx]:
+                    out.loc[row_idx, 'recurrent_band'] = False
+                    out.loc[row_idx, 'excluded_band'] = True
+                else:
+                    out.loc[row_idx, 'recurrent_band'] = False
+                    out.loc[row_idx, 'excluded_band'] = False
 
     meta['segments'] = segments
     return out, meta
