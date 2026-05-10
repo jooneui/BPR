@@ -1230,6 +1230,7 @@ def run_recurrent_peak_pipeline(config_rc, save_dir=None):
                 second_var=second_var_map.get(per, 'end_hour'),
                 fixed_var=fixed_var_map.get(per, 'start_hour'),
             ),
+            draw_band_func=draw_rdpv_band,
             recurrent_col='recurrent_band',
             excluded_col='excluded_band',
             output_tag=output_tag,
