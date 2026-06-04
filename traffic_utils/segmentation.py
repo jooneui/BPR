@@ -615,28 +615,6 @@ def speedbasedpeak(df, column, speed_upper, min_minutes, max_outliers, aggregate
 
 # Version6: divisions based on fixed temporal_range.
 
-def assign_fixedtime_peaks(traffic, config):
-    """
-    Label each time slot into divisions based on temporal_scale.
-    This function does not apply when temporal_scale is 'speedbasedpeak'
-    """
-    ts = traffic.copy()
-    scale = config['temporal_scale']
-    if scale == 'hour':
-        ts['division'] = ts.time_slot // 60
-
-    elif scale == 'peak':
-        ts['division'] = 0
-        m, M = config['peak_periods']['morning']
-        a, A = config['peak_periods']['afternoon']
-        ts.loc[ts.time_slot.between(m, M), 'division'] = 1
-        ts.loc[ts.time_slot.between(a, A), 'division'] = 2
-
-    elif scale == 'entireday':
-        ts['division'] = 0
-
-    return ts
-
 def detect_speed_peaks(traffic, date, config):
     """
     Identify peak periods based on speed using chosen method (pelt, derivative, RDP, etc.).

@@ -3,6 +3,8 @@ import copy
 import numpy as np
 import os
 import pandas as pd
+import subprocess
+import time
 
 # --- cross-module imports (extracted from notebook globals) ---
 from .data_io import (
@@ -13,20 +15,17 @@ from .data_io import (
     load_section_combined,
     set_peak_period_save,
     skip_if_missing,
+    _ensure_local,
 )
-from ._helpers import (
-    _build_traffic_for_vds,
-    _combine_vds_traffic,
-    _common_dates_and_files,
-    _make_vds_config,
-    plot_duration_demand_all_in_one_png_3x3,
-    plot_fd_all_in_one_png,
-    plot_totaldemand_histogram_all_in_one_png_3x3,
+from .plotting_stage1 import (
     speedprofile_plot,
+    plot_duration_demand_all_in_one_png_3x3,
+    plot_totaldemand_histogram_all_in_one_png_3x3,
 )
+from .plotting_stage2 import plot_fd_all_in_one_png
 from .metrics import process_daily_traffic
-from .plotting import plot_bpr_all_in_one_png_3x3
-from .recurrent import build_recurrent_output_tag, generate_config_name, run_recurrent_peak_pipeline
+from .plotting_stage3 import plot_bpr_all_in_one_png_3x3
+from .recurrent import build_recurrent_output_tag, run_recurrent_peak_pipeline
 from .segmentation import detect_speed_peaks
 
 
@@ -643,4 +642,132 @@ def run_full_pipeline(cfg: dict, stages: list = None):
 
     # ── legacy path ─────────────────────────────────────────────
     _run_pipeline_core(cfg, stages)
+
+
+def _common_dates_and_files(config) -> tuple[list, dict]:
+    """
+    For config['VDS_list'], compute intersection of dates and map to filenames.
+    Returns:
+      dates_common (sorted list),
+      date_to_files: {date: {vds: filename_or_None}}
+    """
+    # Handle section_combined format
+    if config.get('data_format') == 'section_combined':
+        from .data_io import _section_cache
+        import pandas as pd
+        from pathlib import Path
+
+        scp = config.get('section_combined_params', {})
+        _path = config.get('path', config.get('file_path', '.'))
+        _dir = config.get('dir', '5min')
+        fname = scp.get('filename', 'Detector.csv')
+        # For per-section configs, use base_vds for folder path
+        base_vds = config.get('base_vds', config['VDS_list'][0])
+        fpath = Path(_path) / '11 Rawdata' / _dir / base_vds / fname
+
+        df = _section_cache.get(str(fpath))
+        if df is None:
+            _ensure_local(str(fpath))
+            df = pd.read_csv(fpath)
+            _section_cache[str(fpath)] = df
+            
+        df.columns = ['Route_ID', 'Direction', 'Section_ID', 'Date', 'Time_interval', 'Volume', 'Speed', 'Occ', 'Density']
+        dformat = scp.get('date_format', '%Y%m%d')
+        dates = sorted(df['Date'].astype(str).unique())
+        # Strip century for consistency if needed
+        if dformat == '%Y%m%d':
+            dates = [d[2:] for d in dates]  # 20180701 → 180701
+
+        date_to_files = {d: {vds: None for vds in config['VDS_list']} for d in dates}
+        return dates, date_to_files
+
+    # --- legacy per-day file format ---
+    date_maps = {}
+    _path = config.get('path', config.get('file_path', '.'))
+    _dir  = config.get('dir', '5min')
+    for vds in config['VDS_list']:
+        base = os.path.join(_path, '11 Rawdata', _dir, vds)
+        date_maps[vds] = _index_files_by_date(base)
+
+    # intersection of date keys
+    sets = [set(dmap.keys()) for dmap in date_maps.values()]
+    dates_common = sorted(set.intersection(*sets))
+
+    date_to_files = {d: {vds: date_maps[vds][d] for vds in config['VDS_list']} for d in dates_common}
+    return dates_common, date_to_files
+
+
+def _make_vds_config(config, vds: str, c_lane_num: dict = None):
+    """Shallow clone with per-VDS fields."""
+    cfg = dict(config)
+    cfg['VDS_num']  = vds
+    cfg['base_vds'] = vds
+    if c_lane_num and vds in c_lane_num:
+        cfg['lane_num'] = c_lane_num[vds]
+    else:
+        cfg['lane_num'] = config.get('lane_num', [])
+    return cfg
+
+
+def _build_traffic_for_vds(date: str, filename: str, cfg_vds, vds, timeframe_min: int = None, c_lane_num: dict = None):
+    """Reuses your existing functions to get a per-VDS day traffic frame."""
+    data_format = cfg_vds.get('data_format', 'per_day_per_lane')
+
+    if data_format == 'section_combined':
+        traffic, coverage_length = load_section_combined(cfg_vds, date)
+        return traffic, coverage_length
+
+    # --- legacy per-day per-lane path ---
+    rawdata, date = load_raw(filename, cfg_vds)
+    if skip_if_missing(rawdata, cfg_vds):
+        print("skip", date)
+        return None
+
+    lane_num = (c_lane_num or {}).get(vds, cfg_vds.get('lane_num', []))
+    coverage_length = rawdata['length'].iloc[0]
+
+    agg_tf = timeframe_min if timeframe_min is not None else cfg_vds.get('aggregate_timeframe', 5)
+    traffic, plot_date = aggregate_rawdata_5min(rawdata, agg_tf, date, lane_num, vds)
+
+    return traffic, coverage_length
+
+
+def _combine_vds_traffic(traffic_list: list[pd.DataFrame], agg_min: int, c_coverage_length: list) -> pd.DataFrame:
+    """
+    Given multiple per-VDS daily DataFrames (already interpolated to identical
+    time_slot grids), return a single DataFrame with:
+        ['time_slot','speed','time','flow','density','occ']
+    computed as simple arithmetic means across VDS for each time_slot.
+    """
+    # keep only columns we can consistently average
+    keep = ['time','time_slot', 'speed', 'flow', 'density','occ']
+    stacked = []
+    for t in traffic_list:
+        if t is not None:
+            stacked.append(t[keep].copy())
+
+    if not stacked:
+        return None
+
+    # Concatenate with keys and average by time_slot
+    # combo = (pd.concat(stacked, keys=range(len(stacked)))
+    #            .groupby('time_slot', as_index=False)[['flow','density']].mean())
+
+    combo = (
+        pd.concat(stacked, keys=range(len(stacked)))
+          .groupby(['time', 'time_slot'], as_index=False)
+          .apply(lambda g: pd.Series({
+              'flow':    np.average(g['flow'],    weights=c_coverage_length),
+              'density': np.average(g['density'], weights=c_coverage_length),
+              'occ':     np.average(g['occ'],     weights=c_coverage_length)
+          }))
+          .reset_index(drop=True))
+
+    # recompute time (min/mile) from averaged speed
+    combo['speed'] = combo['flow'] / combo['density']
+    combo['traveltime'] = 60.0 / combo['speed']
+
+    # ensure standard ordering like your per-day frames
+    combo = combo[['time','time_slot','speed','traveltime','flow','density','occ']].sort_values('time_slot').reset_index(drop=True)
+    return combo
 

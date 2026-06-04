@@ -33,34 +33,6 @@ def _compute_seg_stats(df, value_col, aggregate_timeframe):
     seg_stats["seg_len_sec"] = seg_stats["seg_size"] * aggregate_timeframe
     return seg_stats
 
-
-def _divisions_from_segment_mask(df, is_peak_seg_bool):
-    """
-    Map a per-segment boolean (True=peak) to per-row 'division' labels:
-    0 for off-peak rows; 1..K for contiguous peak blocks.
-    """
-    is_peak_rows = (
-        pd.Series(is_peak_seg_bool, index=is_peak_seg_bool.index)
-          .reindex(df["segment"])
-          .to_numpy()
-    )
-    starts = (is_peak_rows) & (~pd.Series(is_peak_rows).shift(fill_value=False).to_numpy())
-
-    div = starts.cumsum()
-    
-    div[~is_peak_rows] = 0
-    return div.astype(np.int32)
-
-def _renumber_by_contiguity(div):
-    """
-    Renumber any positive divisions to 1..K by contiguity; zeros stay zero.
-    """
-    is_peak = div > 0
-    starts  = (is_peak) & (~pd.Series(is_peak).shift(fill_value=False).to_numpy())
-    new_ids = starts.cumsum()
-    new_ids[~is_peak] = 0
-    return new_ids.astype(np.int32)
-
 def _build_peak_list(df, aggregate_timeframe):
     """
     Build [{'idx', 'start','end','length'}] from df['division'] and df['time_slot'] (seconds).

@@ -98,34 +98,6 @@ def load_raw(file_name, config):
     # return rawdata, gfactor, date
     return rawdata, date
 
-
-
-def load_or_aggregate(rawdata, date, config):
-    """
-    Aggregate and cache daily traffic if not already saved.
-    Returns: traffic_within_day (DataFrame), plot_date (list)
-    """
-    agg = config['aggregate_timeframe']
-    cache_dir = f"./12 python file/{config['VDS_num']}"
-    traffic_file = os.path.join(cache_dir, f"traffic_within_day_{date}_{agg}aggmin_{config['lane_num']}.p")
-    plot_file = os.path.join(cache_dir, f"plot_date_{date}_{agg}aggmin.p")
-
-    if os.path.exists(traffic_file):
-        with open(traffic_file, 'rb') as f:
-            traffic = pickle.load(f)
-        with open(plot_file, 'rb') as f:
-            plot_date = pickle.load(f)
-    else:
-        traffic, plot_date = aggregate_rawdata_5min(
-            rawdata, config['raw_timeframe'], date,
-            config['lane_num'], config['VDS_num']
-        )
-        os.makedirs(cache_dir, exist_ok=True)
-        with open(traffic_file, 'wb') as f: pickle.dump(traffic, f)
-        with open(plot_file, 'wb') as f: pickle.dump(plot_date, f)
-
-    return traffic, plot_date
-
 # ── combined-section CSV loader ─────────────────────────────────────────────
 _section_cache: dict = {}
 
@@ -285,50 +257,6 @@ def skip_if_missing(rawdata, config):
             return True
     
     return False
-    
-
-def highfreeflowspeed_conversion(traffic, config):
-    threshold = config['freeflow_speed_thre']
-    traffic.loc[(traffic['speed']>threshold),'speed'] = threshold
-
-    return traffic
-
-    
-def interpolate_missing(traffic, config):
-    """
-    Linearly interpolate missing time slots in the aggregated traffic DataFrame.
-    """
-    traffic = traffic.copy()
-    a_tf = config['aggregate_timeframe']
-    ## x+a_tf/2 is only applicable for the two-peak detection. otherwise, use {x for x in range(1,24*60+a_tf, a_tf)}
-    all_slots = {x + a_tf / 2 for x in range(0, 24 * 60, a_tf)}
-    present = set(traffic['time_slot'])
-    missing = sorted(all_slots - present)
-
-    for t in missing:
-        if t == min(all_slots) or t == max(all_slots):
-            continue
-        prev_t = max(s for s in present if s < t)
-        next_t = min(s for s in present if s > t)
-        row_prev = traffic[traffic.time_slot == prev_t].iloc[0].astype(float)
-        row_next = traffic[traffic.time_slot == next_t].iloc[0].astype(float)
-        weight = (t - prev_t) / (next_t - prev_t)
-        new_row = row_prev * (1 - weight) + row_next * weight
-        new_row['time_slot'] = t
-        
-        ## for the speed in each lane and the average, recalculate based on the interpolated flow and density
-        speed_cols   = [f"speed_{i}"   for i in config['lane_num']]
-        flow_cols    = [f"flow_{i}"    for i in config['lane_num']]
-        density_cols = [f"density_{i}" for i in config['lane_num']]
-        
-        new_row[speed_cols] = (
-            new_row[flow_cols].to_numpy() /
-            new_row[density_cols].replace(0, np.nan).to_numpy())
-        new_row["speed"] = new_row["flow"] / new_row["density"]
-        
-        traffic = pd.concat([traffic, new_row.to_frame().T], ignore_index=True)
-
-    return traffic.sort_values('time_slot').reset_index(drop=True)
 
 def set_peak_period_save(config, set_peak_period):
     
@@ -514,4 +442,47 @@ def c_daily_traffic_save(config, results, criterion):
         c_daily_traffic.to_csv(f"./04_peak_period_result/c_daily_traffic_{criterion}_{config['spatial_scope']}_{config['VDS_list']}_{config['temporal_scale']}_{config['aggregate_timeframe']}_{config.get('method', config.get('speedbased_params', {}).get('method', 'RDP_v'))}_{config.get('congest_method', config.get('speedbased_params', {}).get('congest_method', 'speed-solely'))}.csv")
     else:
         c_daily_traffic.to_csv(f"./04_peak_period_result/c_daily_traffic_{criterion}_{config['spatial_scope']}_{config['VDS_num']}_{config['temporal_scale']}_{config['aggregate_timeframe']}_{config.get('method', config.get('speedbased_params', {}).get('method', 'RDP_v'))}_{config.get('congest_method', config.get('speedbased_params', {}).get('congest_method', 'speed-solely'))}.csv")
+
+
+# ═══════════════════════════════════════════════════════════
+# Moved from _helpers.py (OneDrive file download utility)
+# ═══════════════════════════════════════════════════════════
+import subprocess
+import time
+
+def _ensure_local(path: str, retries: int = 5, delay: float = 3.0) -> str:
+    """Force-download an OneDrive Files-On-Demand file before reading.
+
+    On macOS with OneDrive, files can be 'cloud-only' — present in directory
+    listings but not physically on disk.  This function tries multiple
+    strategies to make the file local before raising an error.
+    """
+    import subprocess
+
+    for attempt in range(retries):
+        # Strategy 1: Try opening the file (triggers OneDrive on-demand download)
+        try:
+            with open(path, 'rb') as f:
+                f.read(1)
+            return path  # file is local now
+        except FileNotFoundError:
+            if attempt < retries - 1:
+                print(f"  OneDrive file not local yet, retrying ({attempt+1}/{retries})..."
+                      f" path={os.path.basename(path)}")
+                # Strategy 2: Use 'brctl download' to force OneDrive to pin file locally
+                try:
+                    subprocess.run(['brctl', 'download', path],
+                                   capture_output=True, timeout=10)
+                except Exception:
+                    pass
+                # Strategy 3: Touch the file to trigger eviction-clearing
+                try:
+                    import pathlib
+                    pathlib.Path(path).touch()
+                except Exception:
+                    pass
+                time.sleep(delay)
+            else:
+                raise
+    return path
 

@@ -18,17 +18,6 @@ def v2_lnN_vs_lnttau():
         r"$\ln\!\left(\frac{z(r)}{\zeta}-1\right)$",
     )
 
-def v3_lnN_vs_lnttau():
-    return (
-        "ln_totaldemandoverlanes",
-        "ln_t_tau",
-        r"$\ln(Q)$",
-        r"$\ln\!\left(\frac{z(Q)}{\zeta}-1\right)$",
-    )
-
-def v4_speeddep_lnN_vs_lnttau(g: pd.DataFrame):
-    return v2_lnN_vs_lnttau()
-
 def v10_lnq_vs_lnttau():
     return (
         "ln_avg_flow",
@@ -39,7 +28,6 @@ def v10_lnq_vs_lnttau():
 
 LINEAR_REGISTRY_BPR: Dict[str, LinearTransform] = {
     "v2": v2_lnN_vs_lnttau,
-    "v3": v3_lnN_vs_lnttau,
     "v10": v10_lnq_vs_lnttau,
 }
 
@@ -69,14 +57,6 @@ def build_file_path(cfg: dict) -> str:
 
 
 # === Shared utilities ===
-def r2_score(y_true: np.ndarray, y_pred: np.ndarray) -> float:
-    ss_res = np.sum((y_true - y_pred) ** 2)
-    ss_tot = np.sum((y_true - np.mean(y_true)) ** 2)
-    return 1.0 - ss_res / ss_tot if ss_tot > 0 else np.nan
-
-
-def rmse(y_true: np.ndarray, y_pred: np.ndarray) -> float:
-    return float(np.sqrt(np.mean((y_true - y_pred) ** 2)))
 
 
 def to_categorical_day(df: pd.DataFrame) -> pd.DataFrame:

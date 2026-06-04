@@ -10,12 +10,9 @@ import seaborn as sns
 from matplotlib.lines import Line2D
 
 # cross-module imports
-from .plotting import (
+from .plotting_stage2 import (
     annotate_segment_selection_for_plot,
-    draw_fixed_band,
     plot_common_points,
-    plot_start_end_boxplots,
-    plot_start_end_histograms,
 )
 from .segmentation import rdp_v
 from .bpr_fitting import build_file_path
@@ -39,7 +36,7 @@ def prepare_peak_table(config_rc, vds_id, all_periods):
     cfg = copy.deepcopy(config_rc)
     cfg['VDS_num'] = str(vds_id)
     fp = build_file_path(cfg)
-    from ._helpers import _ensure_local
+    from .data_io import _ensure_local
     _ensure_local(fp)
     df_raw = pd.read_csv(fp)
 
@@ -354,35 +351,6 @@ def _period_tag(period):
 
 def _selector_short(selector):
     return {'start_only': 's', 'end_only': 'e', 'both': 'b'}.get(selector, str(selector)[0])
-
-
-def generate_config_name(config):
-    m_rm = config['recurrent_method']
-    si = config['recurrent_method_params'][m_rm]
-
-    def fmt_q(val):
-        return int(val * 100) if val is not None else ""
-
-    if m_rm == 'shortest_interval':
-        m_sel = si['selector_by_period']['morning-peak']
-        m_sq = f"s{fmt_q(si['start_q_by_period']['morning-peak'])}"
-        m_eq = f"e{fmt_q(si['end_q_by_period']['morning-peak'])}"
-        a_sel = si['selector_by_period']['afternoon-peak']
-        a_eq = fmt_q(si['end_q_by_period']['afternoon-peak'])
-    elif m_rm == 'simpleband':
-        m_sel = si['selector_by_period']['morning-peak']
-        m_sq = f"s{si['start_bandwidth_minutes_by_period']['morning-peak']}"
-        m_eq = f"s{si['end_bandwidth_minutes_by_period']['morning-peak']}"
-        a_sel = si['selector_by_period']['afternoon-peak']
-        a_eq = f"s{si['end_bandwidth_minutes_by_period']['afternoon-peak']}"
-    else:
-        return m_rm
-
-    return (
-        f"{m_rm}_"
-        f"morning_{m_sel}_{m_sq}_"
-        f"afternoon_{a_sel}{a_eq}"
-    )
 
 
 def build_recurrent_output_tag(config_rc):
