@@ -1,0 +1,15 @@
+# Ignore everything
+**
+
+# Allow directory traversal
+!*/
+
+# Root-level files to track
+!2nd_phase_BPR_function.ipynb
+!2nd_phase_BPR_function.py
+!Research_BPR_function_Development_JEH.py
+!CLAUDE.md
+!.gitignore
+
+# traffic_utils python files
+!traffic_utils/*.py

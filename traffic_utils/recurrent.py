@@ -1,5 +1,6 @@
 from pathlib import Path
 import copy
+import json
 import math
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
@@ -37,7 +38,10 @@ def time_to_fractional_hour(t_str, default_val=np.nan):
 def prepare_peak_table(config_rc, vds_id, all_periods):
     cfg = copy.deepcopy(config_rc)
     cfg['VDS_num'] = str(vds_id)
-    df_raw = pd.read_csv(build_file_path(cfg))
+    fp = build_file_path(cfg)
+    from ._helpers import _ensure_local
+    _ensure_local(fp)
+    df_raw = pd.read_csv(fp)
 
     df_raw['date'] = df_raw['date'].astype(str)
     df_raw['date_dt'] = pd.to_datetime(df_raw['date'], format='%y%m%d', errors='coerce')
@@ -53,7 +57,12 @@ def prepare_peak_table(config_rc, vds_id, all_periods):
     merge_cols = [c for c in df_raw.columns if c not in ['dayofweek']]
     df_peaks = pd.merge(template, df_raw[merge_cols], on=['date_dt', 'period'], how='left')
     df_peaks['dayofweek'] = df_peaks['date_dt'].dt.strftime('%a')
-    df_peaks['week_num'] = ((df_peaks['date_dt'] - min_date).dt.days // 7) + 1
+    
+    week_bucket = df_peaks['date_dt'] - pd.to_timedelta(df_peaks['date_dt'].dt.dayofweek, unit='D')                                                                                                         
+    unique_weeks = sorted(week_bucket.dropna().unique())                                                                                                                                                    
+    week_map = {w: i + 1 for i, w in enumerate(unique_weeks)}                                                                                                                                               
+    df_peaks['week_num'] = week_bucket.map(week_map)         
+
     df_peaks['is_peak'] = np.where(df_peaks['start_hour'].isna() | df_peaks['end_hour'].isna(), -5, 1)
 
     df_peaks.loc[(df_peaks['is_peak'] == -5) & (df_peaks['period'] == 'morning-peak'), ['start_hour', 'end_hour']] = 0.0
@@ -119,11 +128,15 @@ def classify_facet_fixed_band(
     end_bandwidth_minutes_by_period=None,
     start_bound_mode_by_period=None,
     end_bound_mode_by_period=None,
+    drop_multiplecongestion_days=False,
     **_ignored,
 ):
     out = facet_df.copy()
     out['recurrent_band'] = False
     out['excluded_band'] = False
+
+    # ── Step 0: Deduplicate multiple peaks per day ────────────────────────
+    out, n_dropped = _dedup_multiple_peaks(out, drop_multiplecongestion_days=drop_multiplecongestion_days)
 
     selector_map = _normalize_period_mapping(selector_by_period or band_rules or {'morning-peak': 'both', 'afternoon-peak': 'both'})
     if start_bandwidth_minutes_by_period is None:
@@ -251,11 +264,15 @@ def classify_facet_shortest_interval(
     coverage_by_period=None,
     start_bound_mode_by_period=None,
     end_bound_mode_by_period=None,
+    drop_multiplecongestion_days=False,
     **_ignored,
 ):
     out = facet_df.copy()
     out['recurrent_band'] = False
     out['excluded_band'] = False
+
+    # ── Step 0: Deduplicate multiple peaks per day ────────────────────────
+    out, n_dropped = _dedup_multiple_peaks(out, drop_multiplecongestion_days=drop_multiplecongestion_days)
 
     selector_map = normalize_period_mapping(selector_by_period or {'morning-peak': 'both', 'afternoon-peak': 'both'})
     coverage_map = normalize_period_mapping(coverage_by_period, default=None)
@@ -389,6 +406,8 @@ def build_recurrent_output_tag(config_rc):
                 parts.append(f"{tag}_both_s{int(start_bw.get(per))}_{start_mode.get(per)}_e{int(end_bw.get(per))}_{end_mode.get(per)}")
             else:
                 parts.append(f"{tag}_{sel}")
+        if config_rc.get('drop_multiplecongestion_days', False):
+            parts.append('drop')
         return '_'.join(parts)
     if method == 'shortest_interval':
         selector = normalize_period_mapping(params.get('selector_by_period', {'morning-peak': 'both', 'afternoon-peak': 'both'}))
@@ -411,17 +430,22 @@ def build_recurrent_output_tag(config_rc):
                 parts.append(f"{tag}_both_s{format_pct(sq)}_{start_mode.get(per)}_e{format_pct(eq)}_{end_mode.get(per)}")
             else:
                 parts.append(f"{tag}_{sel}")
+        if config_rc.get('drop_multiplecongestion_days', False):
+            parts.append('drop')
         return '_'.join(parts)
     if method == 'PELT':
         p = params.get('penalty', 20)
         ms = params.get('min_size', 2)
         j = params.get('jump', 1)
         lt = params.get('length_threshold', 4)
-        return f'PELT_pen{p}_min{ms}_jump{j}_len{lt}'
+        tag = f'PELT_pen{p}_min{ms}_jump{j}_len{lt}'
+        if config_rc.get('drop_multiplecongestion_days', False):
+            tag += '_drop'
+        return tag
     if method == 'RDP_v':
         eps_s = normalize_period_mapping(params.get('epsilon_start_by_period', 1.5))
         eps_e = normalize_period_mapping(params.get('epsilon_end_by_period', 1.5))
-        minw  = params.get('segment_min_weeks_by_period', {})
+        minw  = config_rc.get('segment_min_weeks_by_period', {})
         selector = normalize_period_mapping(params.get('selector_by_period', 'both'))
         hgap = params.get('hour_gap_threshold_by_period', {})
         svar = normalize_period_mapping(params.get('second_var_by_period', 'end_hour'))
@@ -439,8 +463,77 @@ def build_recurrent_output_tag(config_rc):
                 f"{tag}_es{eps_s.get(per, 1.5)}_ee{eps_e.get(per, 1.5)}"
                 f"_min{minw.get(per, 2)}_hg{hg}_{sel[0]}_{fv_short}_{sv_short}"
             )
+        # Append _drop if drop_multiplecongestion_days is True
+        if config_rc.get('drop_multiplecongestion_days', False):
+            parts.append('drop')
         return '_'.join(parts)
     return str(method)
+
+
+def _dedup_multiple_peaks(out, drop_multiplecongestion_days=False, period='morning-peak'):
+    """Deduplicate multiple peaks per day.
+
+    Parameters
+    ----------
+    out : DataFrame
+        Facet dataframe with is_peak, date_dt, start_hour, end_hour columns.
+    drop_multiplecongestion_days : bool
+        If True, drop all peaks on days that have multiple peak entries
+        (mark as excluded / no-peak).
+        If False (default), keep only the longest-duration peak per date
+        (tiebreak = earliest start_hour).
+
+    Returns
+    -------
+    out : DataFrame
+        Modified dataframe with duplicates resolved.
+    multi_peak_days : int
+        Number of peak rows removed.
+    """
+    if 'duration_hours' not in out.columns:
+        out['duration_hours'] = out['end_hour'] - out['start_hour']
+
+    # Drop no-peak placeholders if a real peak exists for same date
+    has_real_peak = out[out['is_peak'] == 1]['date_dt'].unique()
+    if len(has_real_peak) > 0:
+        placeholder_mask = (out['is_peak'] == -5) & (out['date_dt'].isin(has_real_peak))
+        out = out[~placeholder_mask].copy()
+
+    # Find dates with multiple peak entries
+    peak_rows = out[out['is_peak'] == 1]
+    counts_per_date = peak_rows.groupby('date_dt').size()
+    multi_peak_dates = set(counts_per_date[counts_per_date > 1].index)
+    n_before_dedup = len(peak_rows)
+
+    # drop the day if it has multiple peaks, otherwise keep the longest-duration peak (tiebreak = earliest start_hour)
+    if drop_multiplecongestion_days and multi_peak_dates:
+        # Drop ALL peaks on dates with multiple peaks (mark as excluded)
+        # multi_mask = (out['is_peak'] == 1) & out['date_dt'].isin(multi_peak_dates)
+        # n_dropped = int(multi_mask.sum())
+        # out = out[~multi_mask].copy()
+        sentinel_hour = 0 if period == 'morning-peak' else 12
+
+        multi_mask = (out['is_peak'] == 1) & out['date_dt'].isin(multi_peak_dates)
+        n_dropped = int(multi_mask.sum())
+
+        # Replace all multi-peak rows with a single sentinel row per date
+        out.loc[multi_mask, ['is_peak', 'start_hour', 'end_hour', 'duration_hours']] = [-5, sentinel_hour, sentinel_hour, 0]
+
+        # Collapse to one sentinel row per date (drop the now-duplicate extras)
+        sentinel_mask = (out['is_peak'] == -5) & out['date_dt'].isin(multi_peak_dates)
+        out = pd.concat([
+            out[~sentinel_mask],
+            out[sentinel_mask].drop_duplicates(subset='date_dt', keep='first')
+        ]).sort_values('date_dt').reset_index(drop=True)
+    else:
+        # Keep longest-duration peak per date; tiebreak = earliest start_hour
+        out = (
+            out.sort_values(['date_dt', 'duration_hours', 'start_hour'], ascending=[True, False, True])
+            .drop_duplicates(subset='date_dt', keep='first')
+        )
+        n_dropped = n_before_dedup - len(out[out['is_peak'] == 1])
+
+    return out, n_dropped
 
 
 def classify_facet_pelt(
@@ -450,6 +543,7 @@ def classify_facet_pelt(
     min_size=2,
     jump=1,
     length_threshold=4,
+    drop_multiplecongestion_days=False,
     **_ignored,
 ):
     """PELT-based recurrent peak detection per (day-of-week, period) facet.
@@ -469,13 +563,19 @@ def classify_facet_pelt(
         'min_size': min_size,
         'jump': jump,
         'length_threshold': length_threshold,
+        'drop_multiplecongestion_days': drop_multiplecongestion_days,
         'n_bkpts_start': 0,
         'n_bkpts_end': 0,
         'segments': [],
+        'multi_peak_days': 0,
     }
 
     if peak_mask.sum() == 0:
         return out, meta
+
+    # ── Step 0: Deduplicate multiple peaks per day ────────────────────────
+    out, n_dropped = _dedup_multiple_peaks(out, drop_multiplecongestion_days=drop_multiplecongestion_days)
+    meta['multi_peak_days'] = n_dropped
 
     # Sort by date to get temporal ordering (keep original index for labeling)
     out = out.sort_values('date_dt')
@@ -486,7 +586,8 @@ def classify_facet_pelt(
     start_hours = out.loc[peak_mask, 'start_hour'].to_numpy()
     end_hours = out.loc[peak_mask, 'end_hour'].to_numpy()
 
-    if len(start_hours) < 3:  # Too few points for meaningful change point detection
+    n_peaks = len(start_hours)
+    if n_peaks < 3:  # Too few points for meaningful change point detection
         return out, meta
 
     # Run PELT on start_hours
@@ -495,9 +596,9 @@ def classify_facet_pelt(
         algo_start = rpt.Pelt(custom_cost='l2', min_size=min_size, jump=jump).fit(signal_start)
         bkpts_start = algo_start.predict(pen=penalty)
     except Exception:
-        bkpts_start = [len(start_hours)]
+        bkpts_start = [n_peaks]
     # Remove the last breakpoint (always len(n))
-    bkpts_start = [b for b in bkpts_start if b < len(start_hours)]
+    bkpts_start = [b for b in bkpts_start if b < n_peaks]
     meta['n_bkpts_start'] = len(bkpts_start)
 
     # Run PELT on end_hours
@@ -506,15 +607,14 @@ def classify_facet_pelt(
         algo_end = rpt.Pelt(custom_cost='l2', min_size=min_size, jump=jump).fit(signal_end)
         bkpts_end = algo_end.predict(pen=penalty)
     except Exception:
-        bkpts_end = [len(end_hours)]
-    bkpts_end = [b for b in bkpts_end if b < len(end_hours)]
+        bkpts_end = [n_peaks]
+    bkpts_end = [b for b in bkpts_end if b < n_peaks]
     meta['n_bkpts_end'] = len(bkpts_end)
 
     # Merge breakpoints (union)
     all_bkpts = sorted(set(bkpts_start) | set(bkpts_end))
     # Add 0 and len as boundaries
-    # boundaries = [0] + all_bkpts + [len(start_hours)]
-    boundaries = [0] + [b + 1 for b in all_bkpts] + [W_total]
+    boundaries = [0] + [b + 1 for b in all_bkpts] + [n_peaks]
 
     # Build segments and label
     segments = []
@@ -553,6 +653,7 @@ def classify_facet_rdpv(
     hour_gap_threshold=2.0,
     second_var='end_hour',
     fixed_var='start_hour',
+    drop_multiplecongestion_days=False,
     **_ignored,
 ):
     """RDP_v-based recurrent peak detection per (day-of-week, period) facet.
@@ -616,6 +717,11 @@ def classify_facet_rdpv(
         epsilon_start controls its RDP tolerance.
         'end_hour' — end_hour is the fixed anchor, epsilon_end controls
         its RDP tolerance.
+    drop_multiplecongestion_days : bool
+        If True, drop all peaks on days that have multiple peak entries
+        (treat them as no-peak days in recurrent analysis).
+        If False (default), keep only the longest-duration peak per date
+        (tiebreak = earliest start_hour).
 
     Returns
     -------
@@ -648,24 +754,8 @@ def classify_facet_rdpv(
     }
 
     # ── Step 0: Deduplicate multiple peaks per day ────────────────────────
-    if 'duration_hours' not in out.columns:
-        out['duration_hours'] = out['end_hour'] - out['start_hour']
-
-    # Drop no-peak placeholders if a real peak exists for same date
-    has_real_peak = out[out['is_peak'] == 1]['date_dt'].unique()
-    if len(has_real_peak) > 0:
-        placeholder_mask = (out['is_peak'] == -5) & (out['date_dt'].isin(has_real_peak))
-        n_before = len(out)
-        out = out[~placeholder_mask].copy()
-
-    # Keep longest-duration peak per date; tiebreak = earliest start_hour
-    n_before_dedup = len(out[out['is_peak'] == 1])
-    out = (
-        out.sort_values(['date_dt', 'duration_hours', 'start_hour'], ascending=[True, False, True])
-        .drop_duplicates(subset='date_dt', keep='first')
-    )
-    n_after_dedup = len(out[out['is_peak'] == 1])
-    meta['multi_peak_days'] = int(n_before_dedup - n_after_dedup)
+    out, n_dropped = _dedup_multiple_peaks(out, drop_multiplecongestion_days=drop_multiplecongestion_days, period=period)
+    meta['multi_peak_days'] = n_dropped
 
     # ── Step 1: Build calendar week index ────────────────────────────────
     # Preserve original index to avoid duplicate-index errors in downstream concat.
@@ -675,8 +765,27 @@ def classify_facet_rdpv(
     # Store the original index for later restoration
     orig_index = out['index'].values if 'index' in out.columns else out.index.values
     out = out.reset_index(drop=True)
+
+    # ── Step 1b: Prepend artificial baseline row as RDP_v anchor ─────────
+    art_period_start = 0.0 if period == 'morning-peak' else 12.0
+    art_row = pd.Series({
+        'date_dt': pd.NaT,
+        'dayofweek': np.nan,
+        'is_peak': -5,
+        'start_hour': art_period_start,
+        'end_hour': art_period_start,
+        'week_num': 0,
+        'duration_hours': 0.0,
+        'vds_id': out['vds_id'].iloc[0] if 'vds_id' in out.columns else np.nan,
+        'period': period,
+    })
+    out = pd.concat([art_row.to_frame().T, out], ignore_index=True)
+    out = out.reset_index(drop=True)
+
     W_total = len(out)
-    if W_total == 0:
+    if W_total <= 1:
+        # Only the artificial row — nothing to label
+        out = out.iloc[1:].reset_index(drop=True)
         return out, meta
 
     week_idx = np.arange(W_total)
@@ -684,11 +793,16 @@ def classify_facet_rdpv(
 
     if is_peak_week.sum() == 0:
         # No peak weeks at all — nothing to label
+        out = out.iloc[1:].reset_index(drop=True)
         return out, meta
 
     # Fractional hours; 0.0 for no-peak weeks (flat on cumulative curve)
     start_hours_full = np.where(is_peak_week, out['start_hour'].to_numpy(dtype=float), 0.0)
     end_hours_full   = np.where(is_peak_week, out['end_hour'].to_numpy(dtype=float), 0.0)
+
+    # Override art-row values so cumulative series starts from baseline
+    start_hours_full[0] = art_period_start
+    end_hours_full[0]   = art_period_start
 
     # ── Step 1b: Determine fixed/secondary curves based on fixed_var ───
     # fixed_var determines which time variable is the "anchor" (stable) and
@@ -769,10 +883,14 @@ def classify_facet_rdpv(
     if apply_primary:
         simplified_primary = rdp_v(pts_primary, epsilon=eps_primary)
         bp_primary = simplified_primary[:, 0].astype(int).tolist()
+        # print("before",bp_primary)
+        # bp_primary = [b for b in bp_primary if b != 0]  # strip art-row anchor (x=0)
+        # print("after",bp_primary)
 
     if apply_secondary:
         simplified_secondary = rdp_v(pts_secondary, epsilon=eps_secondary)
         bp_secondary = simplified_secondary[:, 0].astype(int).tolist()
+        # bp_secondary = [b for b in bp_secondary if b != 0]  # strip art-row anchor (x=0)
 
     # Store breakpoints under canonical names for compatibility with
     # downstream code (draw_rdpv_band, etc.)
@@ -835,8 +953,8 @@ def classify_facet_rdpv(
 
     meta['hour_gap_threshold'] = hour_gap_threshold
 
-    meta['all_breakpoints'] = all_bkpts
     # Store start/end breakpoint weeks separately for changepoint visualization 'if b < len(out)'
+    meta['all_breakpoints'] = all_bkpts
     meta['breakpoint_weeks_start'] = [float(out.loc[b, 'week_num']) for b in bp_start ]
     meta['breakpoint_weeks_end'] = [float(out.loc[b, 'week_num']) for b in bp_end ]
     meta['breakpoint_weeks'] = [float(out.loc[b, 'week_num']) for b in all_bkpts ]
@@ -854,7 +972,6 @@ def classify_facet_rdpv(
 
         # Get week_num range for this segment (for draw_rdpv_band)
         if seg_start < seg_end:
-            print(seg_start, seg_end)
             seg_week_nums = out.loc[seg_start:seg_end, 'week_num'].values
             start_week = float(seg_week_nums.min())
             end_week = float(seg_week_nums.max())
@@ -881,6 +998,8 @@ def classify_facet_rdpv(
             if retained:
                 # Retained segment: all rows (peak and no-peak) get segment_id
                 out.loc[row_idx, 'segment_id'] = seg_id
+                # print("retained_row_idx", row_idx, seg_id)
+                # print(out.iloc[row_idx,:])
                 if is_peak_week[row_idx]:
                     out.loc[row_idx, 'recurrent_band'] = True
                     out.loc[row_idx, 'excluded_band'] = False
@@ -897,6 +1016,10 @@ def classify_facet_rdpv(
                     out.loc[row_idx, 'excluded_band'] = False
 
     meta['segments'] = segments
+
+    # ── Step 7: Remove artificial first row ──────────────────────────────
+    out = out.iloc[1:].reset_index(drop=True)
+
     return out, meta
 
 
@@ -917,8 +1040,6 @@ def draw_rdpv_band(ax, meta):
     from matplotlib.lines import Line2D
 
     segments = meta.get('segments', [])
-    print("segmentS", segments)
-    print("bw", meta.get('breakpoint_weeks_start', []))
 
     for seg in segments:
         peak_weeks = seg.get('peak_weeks', [])
@@ -946,10 +1067,10 @@ def draw_rdpv_band(ax, meta):
     # for bw in meta.get('breakpoint_weeks', meta.get('all_breakpoints', [])):
     #    ax.axvline(bw - 0.5, color='grey', linestyle=':', linewidth=0.4, alpha=0.4)
 
-    handles.append(Patch(facecolor='green', alpha=0.15, label='Recurrent segment'))
-    handles.append(Patch(facecolor='grey', alpha=0.15, label='Excluded segment'))
-    labels.append('Recurrent segment')
-    labels.append('Excluded segment')
+    # handles.append(Patch(facecolor='green', alpha=0.15, label='Recurrent segment'))
+    # handles.append(Patch(facecolor='grey', alpha=0.15, label='Excluded segment'))
+    # labels.append('Recurrent segment')
+    # labels.append('Excluded segment')
 
     if has_start:
         handles.append(Line2D([0], [0], color='blue', linestyle='--', linewidth=0.8, alpha=0.6, label='Start-hour CP'))
@@ -1026,6 +1147,7 @@ def plot_recurrent_facets(df_peaks, facet_meta, recurrent_col, excluded_col, dra
         for j, per in enumerate(ALL_PERIODS):
             ax = axes[i, j]
             sub = data[(data['dayofweek'] == day) & (data['period'] == per)].copy()
+            print(f"Plotting facet for {day} {per}, n={len(sub)}", sub.head())
             point_handles, point_labels = plot_common_points(
                 ax, sub, recurrent_col, excluded_col,
                 merge_excluded_to_not_selected=merge_excluded_to_not_selected)
@@ -1036,7 +1158,7 @@ def plot_recurrent_facets(df_peaks, facet_meta, recurrent_col, excluded_col, dra
                 ax.set_title(per, fontsize=12, fontweight='bold')
             if j == 0:
                 ax.set_ylabel("Time (hour)")
-                ax.text(-0.35, 0.5, day, transform=ax.transAxes,
+                ax.text(-0.1, 0.5, day, transform=ax.transAxes,
                         rotation=90, va='center', ha='right', fontsize=11, fontweight='bold')
             ax.set_xlabel('Week Number')
             ax.yaxis.set_major_locator(ticker.MultipleLocator(1))
@@ -1046,17 +1168,24 @@ def plot_recurrent_facets(df_peaks, facet_meta, recurrent_col, excluded_col, dra
             else:
                 ax.set_ylim(11, 24.5)
             if i == 0 and j == 0 and handles:
-                ax.legend(handles, labels, loc='upper left', fontsize=9, frameon=True)
-    _labels = cfg.get('VDS_label_list', [])
-    if isinstance(_labels, dict):
-        _label = _labels.get(str(vds_id), str(vds_id))
-    else:
-        _vlist = [str(v) for v in cfg.get('VDS_list', [])]
-        _idx = _vlist.index(str(vds_id)) if str(vds_id) in _vlist else -1
-        _label = _labels[_idx] if 0 <= _idx < len(_labels) else str(vds_id)
+                ax.legend(handles, labels, loc='lower left', fontsize=11, frameon=True)
+
+    
+    _raw = cfg.get('VDS_label_list', {})
+    # Flatten nested dict: {'SR91': {'1203481': 'SR91-WB', ...}} → {'1203481': 'SR91-WB', ...}
+    _flat_labels = {}
+    for _key, _val in _raw.items():
+        if isinstance(_val, dict):
+            _flat_labels.update({_k: _v for _k, _v in _val.items()})
+        else:
+            _flat_labels[_key] = _val
+
+    _label = _flat_labels.get(str(vds_id), str(vds_id))
+
     title = f"Recurrent Peak Selection ({_label})"
-    fig.suptitle(title, fontsize=16)
+    fig.suptitle(title, fontsize=20, y=1.0)
     fig.tight_layout()
+
     if save_path:
         plt.savefig(save_path, dpi=150, bbox_inches='tight')
     plt.show()
@@ -1081,6 +1210,7 @@ def run_band_recurrent_pipeline(
 
     all_excluded = []
     all_processed = []
+    all_meta_rows = []
 
     for vds_id in config_rc['VDS_list']:
         print(f'Running recurrent detection for VDS {vds_id} ({output_tag})')
@@ -1094,6 +1224,19 @@ def run_band_recurrent_pipeline(
                 facet_out, meta = classify_facet_func(facet_df, per)
                 processed_facets.append(facet_out)
                 facet_meta[(day, per)] = meta
+
+        # Accumulate facet_meta rows for later CSV export
+        for (day, per), m in facet_meta.items():
+            row = {'vds_id': str(vds_id), 'dayofweek': day, 'period': per}
+            for k, v in m.items():
+                if isinstance(v, (list, dict)):
+                    row[k] = json.dumps(v, default=str)
+                elif isinstance(v, np.ndarray):
+                    row[k] = json.dumps(v.tolist(), default=str)
+                else:
+                    row[k] = v
+            all_meta_rows.append(row)
+        
 
         df_out = pd.concat(processed_facets, ignore_index=True).copy()
         df_out['vds_id'] = str(vds_id)
@@ -1113,8 +1256,8 @@ def run_band_recurrent_pipeline(
 
             box_path = save_dir / f"{Path(base_name).stem}_boxplot.png"
             hist_path = save_dir / f"{Path(base_name).stem}_hist.png"
-            plot_start_end_boxplots(df_out, save_path=box_path, vds_id=str(vds_id), cfg=config_rc)
-            plot_start_end_histograms(df_out, bin_size=interval_bin_size, save_path=hist_path, vds_id=str(vds_id), cfg=config_rc)
+            # plot_start_end_boxplots(df_out, save_path=box_path, vds_id=str(vds_id), cfg=config_rc)
+            # plot_start_end_histograms(df_out, bin_size=interval_bin_size, save_path=hist_path, vds_id=str(vds_id), cfg=config_rc)
 
     excluded_path = output_dir / f'05_recurrent_peak_result/excluded_recurrent_days_{output_tag}.csv'
     processed_path = output_dir / f'05_recurrent_peak_result/recurrent_days_labeled_{output_tag}.csv'
@@ -1123,10 +1266,19 @@ def run_band_recurrent_pipeline(
     df_excluded_all.to_csv(excluded_path, index=False)
     df_processed_all.to_csv(processed_path, index=False)
 
+    # Export all facet_meta as one CSV (one row per vds_id × dayofweek × period)
+    meta_csv_path = output_dir / f'05_recurrent_peak_result/facet_meta_{output_tag}.csv'
+    if all_meta_rows:
+        df_meta_all = pd.DataFrame(all_meta_rows)
+        df_meta_all.to_csv(meta_csv_path, index=False)
+    else:
+        pd.DataFrame().to_csv(meta_csv_path, index=False)
+
     return {
         'output_tag': output_tag,
         'excluded_csv': str(excluded_path),
         'labeled_csv': str(processed_path),
+        'meta_csv': str(meta_csv_path),
     }
 
 
@@ -1141,6 +1293,7 @@ def run_recurrent_peak_pipeline(config_rc, save_dir=None):
         start_bw = params.get('start_bandwidth_minutes_by_period', {'morning-peak': 30, 'afternoon-peak': 30})
         end_bw = params.get('end_bandwidth_minutes_by_period', {'morning-peak': 30, 'afternoon-peak': 30})
         print(f'Running simpleband recurrent detection: selector={selector_by_period}, start_bw={start_bw}, end_bw={end_bw}')
+        drop_multi = config_rc.get('drop_multiplecongestion_days', False)
         bw_values = [v for v in list(normalize_period_mapping(start_bw).values()) + list(normalize_period_mapping(end_bw).values()) if v is not None]
         return run_band_recurrent_pipeline(
             config_rc=config_rc,
@@ -1152,6 +1305,7 @@ def run_recurrent_peak_pipeline(config_rc, save_dir=None):
                 end_bandwidth_minutes_by_period=end_bw,
                 start_bound_mode_by_period=params.get('start_bound_mode_by_period'),
                 end_bound_mode_by_period=params.get('end_bound_mode_by_period'),
+                drop_multiplecongestion_days=drop_multi,
             ),
             draw_band_func=draw_fixed_band,
             recurrent_col='recurrent_band',
@@ -1165,6 +1319,7 @@ def run_recurrent_peak_pipeline(config_rc, save_dir=None):
     if method == 'shortest_interval':
         params = config_rc.get('recurrent_method_params', {}).get('shortest_interval', {})
         print(f"Running shortest_interval recurrent detection: selector={params.get('selector_by_period')}, start_q={params.get('start_q_by_period')}, end_q={params.get('end_q_by_period')}")
+        drop_multi = config_rc.get('drop_multiplecongestion_days', False)
         return run_band_recurrent_pipeline(
             config_rc=config_rc,
             classify_facet_func=lambda facet_df, per: classify_facet_shortest_interval(
@@ -1176,6 +1331,7 @@ def run_recurrent_peak_pipeline(config_rc, save_dir=None):
                 coverage_by_period=params.get('coverage_by_period'),
                 start_bound_mode_by_period=params.get('start_bound_mode_by_period'),
                 end_bound_mode_by_period=params.get('end_bound_mode_by_period'),
+                drop_multiplecongestion_days=drop_multi,
             ),
             draw_band_func=draw_fixed_band,
             recurrent_col='recurrent_band',
@@ -1192,7 +1348,8 @@ def run_recurrent_peak_pipeline(config_rc, save_dir=None):
         min_size = params.get('min_size', 2)
         jump = params.get('jump', 1)
         length_threshold = params.get('length_threshold', 4)
-        print(f'Running PELT recurrent detection: pen={pen}, min_size={min_size}, jump={jump}, length_threshold={length_threshold}')
+        drop_multi = config_rc.get('drop_multiplecongestion_days', False)
+        print(f'Running PELT recurrent detection: pen={pen}, min_size={min_size}, jump={jump}, length_threshold={length_threshold}, drop_multi={drop_multi}')
         return run_band_recurrent_pipeline(
             config_rc=config_rc,
             classify_facet_func=lambda facet_df, per: classify_facet_pelt(
@@ -1202,6 +1359,7 @@ def run_recurrent_peak_pipeline(config_rc, save_dir=None):
                 min_size=min_size,
                 jump=jump,
                 length_threshold=length_threshold,
+                drop_multiplecongestion_days=drop_multi,
             ),
             draw_band_func=draw_pelt_band,
             recurrent_col='recurrent_band',
@@ -1217,14 +1375,15 @@ def run_recurrent_peak_pipeline(config_rc, save_dir=None):
         params = config_rc.get('recurrent_method_params', {}).get('RDP_v', {})
         eps_start_map = normalize_period_mapping(params.get('epsilon_start_by_period', 1.5))
         eps_end_map   = normalize_period_mapping(params.get('epsilon_end_by_period', 1.5))
-        min_weeks_map = params.get('segment_min_weeks_by_period', {'morning-peak': 2, 'afternoon-peak': 2})
+        min_weeks_map = config_rc.get('segment_min_weeks_by_period', {'morning-peak': 2, 'afternoon-peak': 2})
         selector_map  = normalize_period_mapping(params.get('selector_by_period', 'both'))
         hour_gap_map  = params.get('hour_gap_threshold_by_period', {'morning-peak': 2.0, 'afternoon-peak': 2.0})
         second_var_map = normalize_period_mapping(params.get('second_var_by_period', 'end_hour'))
         fixed_var_map = normalize_period_mapping(params.get('fixed_var_by_period', 'start_hour'))
+        drop_multi = config_rc.get('drop_multiplecongestion_days', False)
         print(f'Running RDP_v recurrent detection: eps_start={dict(eps_start_map)}, eps_end={dict(eps_end_map)}, '
               f'min_weeks={min_weeks_map}, selector={dict(selector_map)}, hour_gap={dict(hour_gap_map)}, '
-              f'second_var={dict(second_var_map)}, fixed_var={dict(fixed_var_map)}')
+              f'second_var={dict(second_var_map)}, fixed_var={dict(fixed_var_map)}, drop_multi={drop_multi}')
         return run_band_recurrent_pipeline(
             config_rc=config_rc,
             classify_facet_func=lambda facet_df, per: classify_facet_rdpv(
@@ -1237,6 +1396,7 @@ def run_recurrent_peak_pipeline(config_rc, save_dir=None):
                 hour_gap_threshold=hour_gap_map.get(per, 2.0),
                 second_var=second_var_map.get(per, 'end_hour'),
                 fixed_var=fixed_var_map.get(per, 'start_hour'),
+                drop_multiplecongestion_days=drop_multi,
             ),
             draw_band_func=draw_rdpv_band,
             recurrent_col='recurrent_band',

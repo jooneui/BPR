@@ -298,11 +298,15 @@ def aggregate_segment_level_bpr(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
                 grouped = g.groupby('segment_id', dropna=False)
             for segment_id, seg in grouped:
                 min_weeks = int(min_weeks_map.get(period, 2))
+                print("seghead",seg.head())
                 if len(seg) < min_weeks:
                     continue
                 avg_demand = float(seg['totaldemandoverlanes'].mean())
                 avg_totaldemand = float(seg['totaldemand'].mean()) if 'totaldemand' in seg.columns else np.nan
-                avg_avg_flow = float(seg['avg_flow'].mean()) if 'avg_flow' in seg.columns else np.nan
+
+                avg_avg_flow = float(seg['totaldemand'].mean()/(seg['duration'].mean()/60)) if 'avg_flow' in seg.columns else np.nan
+                # avg_avg_flow = float(seg['avg_flow'].mean()) if 'avg_flow' in seg.columns else np.nan
+
                 avg_tt = weighted_harmonic_mean(seg['traveltimes'], seg['totaldemandoverlanes'])
                 free_tt = float(seg['free_traveltime'].median())
                 tau_ratio = avg_tt / free_tt - 1.0 if pd.notna(avg_tt) and pd.notna(free_tt) and free_tt > 0 else np.nan
@@ -400,7 +404,8 @@ def apply_filters(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
     if cfg.get('spatial_scope') == 'single' and str(cfg.get('VDS_num')) == '1205541':
         df = df[df['month'].isin(['2401', '2402', '2403'])]
 
-    if cfg.get('drop_days_weird_peak_times') or cfg.get('drop_multiplecongestion_days'):
+    # df_sb ──→ drop_days_weird_peak_times filter  (checks start_time outliers)     
+    if cfg.get('drop_days_weird_peak_times'):
         _sp = cfg.get('speedbased_params', {})
         _method  = cfg.get('method',         _sp.get('method',         'RDP_v'))
         _congest = cfg.get('congest_method',  _sp.get('congest_method', 'speed-solely'))
@@ -422,6 +427,7 @@ def apply_filters(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
     else:
         df_sb = None
 
+
     if cfg.get('drop_days_weird_peak_times') and df_sb is not None:
         morning_earliest = cfg.get('morning_earliest', '05:00')
         afternoon_latest = cfg.get('afternoon_latest', '19:00')
@@ -438,14 +444,14 @@ def apply_filters(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
         print(f"[drop_days_weird_peak_times] Removed {before - len(df)} rows from {len(bad_dates)} dates "
               f"| morning_earliest: {morning_earliest}, afternoon_latest: {afternoon_latest}")
 
-    if cfg.get('drop_multiplecongestion_days') and df_sb is not None:
-        for period in ['morning-peak', 'afternoon-peak']:
-            counts_per_date = df_sb[df_sb['period'] == period].groupby('date').size()
-            bad_dates = set(counts_per_date[counts_per_date > 1].index.astype(str))
-            if cfg['temporal_scale'] in ['entireday', 'hour']:
-                df = df[~df['date'].astype(str).isin(bad_dates)]
-            elif cfg['temporal_scale'] == 'speedbasedpeak':
-                df = df[~((df['date'].astype(str).isin(bad_dates)) & (df['period'] == period))]
+    # if cfg.get('drop_multiplecongestion_days') and df_sb is not None:
+    #     for period in ['morning-peak', 'afternoon-peak']:
+    #         counts_per_date = df_sb[df_sb['period'] == period].groupby('date').size()
+    #         bad_dates = set(counts_per_date[counts_per_date > 1].index.astype(str))
+    #         if cfg['temporal_scale'] in ['entireday', 'hour']:
+    #             df = df[~df['date'].astype(str).isin(bad_dates)]
+    #         elif cfg['temporal_scale'] == 'speedbasedpeak':
+    #             df = df[~((df['date'].astype(str).isin(bad_dates)) & (df['period'] == period))]
 
     if cfg.get('drop_nonrecurrent_days'):
         df = _apply_nonrecurrent_exclusion(df, cfg)
