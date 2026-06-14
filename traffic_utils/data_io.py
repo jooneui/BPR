@@ -5,6 +5,18 @@ import pandas as pd
 import pickle
 
 
+_MEASURED_COLS = ['flow', 'density', 'occ']
+
+
+def interpolate_missing(df, cols=None, limit_area='inside', limit_direction='both'):
+    if cols is None:
+        cols = [c for c in _MEASURED_COLS if c in df.columns]
+    df[cols] = df[cols].interpolate(
+        method='linear', limit_area=limit_area, limit_direction=limit_direction
+    )
+    return df
+
+
 def rawdata_setting(full_path,VDS_num,file_name,lane_num):
     """
     Upload raw-data and standardize the settings
@@ -32,7 +44,7 @@ This function address calculating traffic state variables in every pre-determine
 Interpolate_missing(traffic, config) is also changed.
 """
 
-def aggregate_rawdata_5min(rawdata, raw_timeframe, date, lane_num, VDS_num):
+def aggregate_rawdata_5min(rawdata, raw_timeframe, date, lane_num, VDS_num, config=None):
     
     # Pre-compute time_slot for all data to avoid doing it in the loop
     rawdata['time_slot'] = (np.floor(rawdata['time_filter'] / raw_timeframe)) * raw_timeframe + raw_timeframe/2
@@ -59,8 +71,12 @@ def aggregate_rawdata_5min(rawdata, raw_timeframe, date, lane_num, VDS_num):
     rawdata['flow'] = rawdata[flow_set].mean(axis=1)
     rawdata['density'] = rawdata[density_set].mean(axis=1)
     rawdata['occ'] = rawdata[occ_set].mean(axis=1)
+
+    if config and config.get('interpolate_missing', True):
+        rawdata = interpolate_missing(rawdata, cols=['flow', 'density', 'occ'])
+
     rawdata['speed'] = rawdata['flow'] /  rawdata['density']
-    rawdata['traveltime'] = 1/rawdata['speed'] * 60 
+    rawdata['traveltime'] = 1/rawdata['speed'] * 60
 
     traffic_within_day = rawdata
     plot_date = traffic_within_day['time_slot']
@@ -192,6 +208,9 @@ def load_section_combined(config, date: str):
     else:
         grouped['speed'] = grouped['Speed'].copy()
 
+    if config.get('interpolate_missing', True):
+        grouped = interpolate_missing(grouped, cols=['flow', 'speed'])
+
     grouped['density'] = grouped['flow'] / grouped['speed']
     grouped['traveltime'] = 60.0 / grouped['speed']
     grouped['occ'] = np.nan
@@ -248,15 +267,30 @@ def skip_if_missing(rawdata, config):
     """
     total_expected = (24 * 60) / config['raw_timeframe']
 
-    for lane in config['lane_num']:
-        col_name = f'flow_{lane}'
-        # Count total zeros in this lane
-        zero_count = (rawdata[col_name] == 0).sum()
-        
-        if zero_count > (total_expected * config['missing_ratio']):
-            return True
+    # for lane in config['lane_num']:
+    #     col_name = f'flow_{lane}'
+    #     # Count total zeros in this lane
+    #     zero_count = (rawdata[col_name] == 0).sum()
+    row_count = len(rawdata)
+
+    if  row_count < (total_expected * (1-config['missing_ratio'])):
+        print(f"  Skipping due to too many missing slots in: {row_count}")
+        print(rawdata.loc[0, 'time'])
+        return True
     
     return False
+
+
+
+def interpolate_missing(df, cols=None, limit_area='inside', limit_direction='both'):
+    _TRAFFIC_STATE_COLS = ['flow', 'speed', 'density', 'traveltime', 'occ']
+    if cols is None:
+        cols = [c for c in _TRAFFIC_STATE_COLS if c in df.columns]
+    df[cols] = df[cols].interpolate(
+        method='linear', limit_area=limit_area, limit_direction=limit_direction
+    )
+    return df
+
 
 def set_peak_period_save(config, set_peak_period):
     
@@ -431,6 +465,104 @@ def compute_bpr_ff_speed_thresholds(cfg: dict) -> dict:
         print(f"[compute_bpr_ff] {vds}: flow-weighted harmonic mean speed = {ff_speed:.2f} → threshold = {results[vds]}")
     
     return results
+
+
+def _max_consecutive_below(arr, threshold):
+    """Return the longest run of consecutive slots strictly below threshold (NaN breaks run)."""
+    max_run = cur = 0
+    for v in arr:
+        if not np.isnan(v) and v < threshold:
+            cur += 1
+            if cur > max_run:
+                max_run = cur
+        else:
+            cur = 0
+    return max_run
+
+
+def count_congested_days(config, speed_thresholds=None):
+    """
+    For each VDS in config['VDS_list'], count how many (day, AM/PM) pairs
+    remain after skip_if_missing and contain >=15 min of consecutive speed
+    below each threshold.
+
+    Speed thresholds tested: [20, 25, 30, 35] mph by default.
+
+    Usage:
+        df = count_congested_days(MASTER_CONFIG)
+    """
+    from pathlib import Path
+
+    if speed_thresholds is None:
+        speed_thresholds = [20, 25, 30, 35]
+
+    raw_timeframe = config.get('raw_timeframe', 5)
+    min_slots = int(np.ceil(15 / raw_timeframe))   # 3 slots for 5-min data
+
+    base_path = Path(config.get('path', config.get('file_path', '.'))) / '11 Rawdata'
+    c_lane_num = config.get('lane_map', {})
+
+    records = []
+
+    for vds in config['VDS_list']:
+        lane_num = c_lane_num.get(vds, config.get('lane_num', []))
+        if not lane_num:
+            print(f"[count_congested_days] No lane_num for VDS {vds} — add to lane_map. Skipping.")
+            continue
+
+        cfg_vds = dict(config, VDS_num=vds, lane_num=lane_num)
+        data_dir = base_path / config.get('dir', '5min') / vds
+
+        if not data_dir.exists():
+            print(f"[count_congested_days] Directory not found: {data_dir}")
+            continue
+
+        file_list = sorted(
+            f.name for f in data_dir.iterdir()
+            if f.is_file() and f.suffix in ('.xlsx', '.xls')
+        )
+
+        counts = {thr: {'AM': 0, 'PM': 0} for thr in speed_thresholds}
+        total_days = 0
+        skipped_days = 0
+
+        for fname in file_list:
+            raw, _date = load_raw(fname, cfg_vds)
+            if skip_if_missing(raw, cfg_vds):
+                skipped_days += 1
+                continue
+
+            total_days += 1
+
+            speed_cols = [f'speed_{i}' for i in lane_num]
+            avg_speed = raw[speed_cols].replace(0, np.nan).mean(axis=1).values
+
+            am_mask = raw['time_filter'].values < 720
+            pm_mask = np.logical_not(am_mask)
+
+            for thr in speed_thresholds:
+                if _max_consecutive_below(avg_speed[am_mask], thr) >= min_slots:
+                    counts[thr]['AM'] += 1
+                if _max_consecutive_below(avg_speed[pm_mask], thr) >= min_slots:
+                    counts[thr]['PM'] += 1
+
+        print(f"\n[VDS {vds}] Total days processed: {total_days}, Skipped (missing): {skipped_days}")
+
+        for period in ['AM', 'PM']:
+            row = {'VDS': vds, 'Period': period}
+            for thr in speed_thresholds:
+                row[f'thr={thr}mph'] = round(counts[thr][period] / total_days, 2)
+                # row[f'thr={thr}mph'] = counts[thr][period] 
+            records.append(row)
+
+    if not records:
+        print("[count_congested_days] No results — check VDS_list and directory paths.")
+        return pd.DataFrame()
+
+    df = pd.DataFrame(records).set_index(['VDS', 'Period'])
+    print(f"\n=== Congested Day Counts (≥{min_slots * raw_timeframe} min below speed threshold) ===")
+    print(df.to_string())
+    return df
 
 
 def c_daily_traffic_save(config, results, criterion): 

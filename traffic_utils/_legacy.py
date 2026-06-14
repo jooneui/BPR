@@ -948,12 +948,6 @@ def highfreeflowspeed_conversion(df, lane_num_list, freeflowspeed):
     return df
 
 
-def interpolate_missing(df, cols=None, limit_area='inside', limit_direction='both'):
-    """Linear interpolation of missing values in specified columns."""
-    if cols is None:
-        cols = df.select_dtypes(include='number').columns
-    df[cols] = df[cols].interpolate(method='linear', limit_area=limit_area, limit_direction=limit_direction)
-    return df
 
 
 def load_or_aggregate(base_path, vds_id, date_str, cfg, agg_timeframe=5):

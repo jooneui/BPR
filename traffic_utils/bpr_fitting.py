@@ -18,6 +18,14 @@ def v2_lnN_vs_lnttau():
         r"$\ln\!\left(\frac{z(r)}{\zeta}-1\right)$",
     )
 
+def v3_lnN_vs_lnttau():
+    return (
+        "ln_totaldemandoverlanes",
+        "ln_t_tau",
+        r"$\ln(Q)$",
+        r"$\ln\!\left(\frac{z(Q)}{\zeta}-1\right)$",
+    )
+
 def v10_lnq_vs_lnttau():
     return (
         "ln_avg_flow",
@@ -28,6 +36,7 @@ def v10_lnq_vs_lnttau():
 
 LINEAR_REGISTRY_BPR: Dict[str, LinearTransform] = {
     "v2": v2_lnN_vs_lnttau,
+    "v3": v3_lnN_vs_lnttau,
     "v10": v10_lnq_vs_lnttau,
 }
 
