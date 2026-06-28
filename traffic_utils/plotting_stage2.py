@@ -17,8 +17,20 @@ from matplotlib.lines import Line2D
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from .bpr_fitting import time_to_fractional_hour
 
 DAY_ORDER = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+_FD_COLORS = {'AM': '#1f77b4', 'PM': '#d62728'}
+_PERIOD_TO_AM_PM = {'morning-peak': 'AM', 'afternoon-peak': 'PM'}
+
+
+def _compute_start_hour(df):
+    if 'start_hour' in df.columns:
+        return df
+    df = df.copy()
+    df['start_hour'] = df['start_time'].apply(time_to_fractional_hour)
+    return df
 
 
 def _flatten_vds_labels(labels):
@@ -74,21 +86,42 @@ def plot_linear_by_group_FD(
     title_suffix: str = "",
     save_name=None,
 ):
+    """Plot fundamental diagram scatter, split by AM/PM.
+
+    Returns
+    -------
+    dict  {'AM': bool, 'PM': bool}
+        True = period passes the density-threshold check and should proceed
+        to recurrent classification and BPR; False = skip.
+    """
     # ----------------------------
-    # 1) Transform
+    # 1) Resolve X/Y column names
     # ----------------------------
-    print(df_segment.head())
     if variable == "qk":
-        X = df_segment['density']
-        Y = df_segment['avg_flow']
-        Z = X/Y*60
+        x_col, y_col = 'density', 'avg_flow'
     elif variable == "uq":
-        X = df_segment['avg_flow']
-        Y = df_segment['avg_speed']
-        Z = 1/Y*X*60
+        x_col, y_col = 'avg_flow', 'avg_speed'
+    else:
+        raise ValueError(f"Unknown variable: {variable}")
 
     # ----------------------------
-    # 2) Figure setup (beautified)
+    # 2) AM/PM split + threshold
+    # ----------------------------
+    df_segment = _compute_start_hour(df_segment)
+    df_segment = df_segment.copy()
+    df_segment['_am_pm'] = df_segment['start_hour'].apply(
+        lambda h: 'AM' if h < 12 else 'PM'
+    )
+
+    den_threshold   = cfg.get('den_threshold', 40)
+    count_threshold = cfg.get('count_threshold', 100)
+    vds_id = cfg.get('VDS_num', '?')
+
+    skip_flags = {}
+    fd_handles = []
+
+    # ----------------------------
+    # 3) Figure setup
     # ----------------------------
     plt.rcParams.update({
         "font.family": "STIXGeneral",
@@ -100,45 +133,76 @@ def plot_linear_by_group_FD(
     fig.patch.set_facecolor("white")
     ax.set_facecolor("white")
 
-    ax.scatter(
-        X, Y,
-        s=14,
-        alpha=0.18,
-        linewidths=0,
-        rasterized=True
-    )
+    for period_label, color in _FD_COLORS.items():
+        sub = df_segment[df_segment['_am_pm'] == period_label]
+        if sub.empty:
+            skip_flags[period_label] = False
+            continue
+        n_total = len(sub)
+        n_over  = int((sub['density'] > den_threshold).sum())
+        passes  = n_over >= count_threshold
+        skip_flags[period_label] = passes
+
+        lbl = f"{period_label}  ({n_over} / {n_total} over {den_threshold})"
+        ax.scatter(
+            sub[x_col], sub[y_col],
+            s=14, alpha=0.18, linewidths=0,
+            color=color, rasterized=True,
+        )
+        fd_handles.append(mpatches.Patch(color=color, label=lbl))
+
+        if not passes:
+            print(
+                f"[SKIP] VDS {vds_id} {period_label}: "
+                f"{n_over} / {n_total} points over density {den_threshold} "
+                f"(< {count_threshold} required) — will skip recurrent and BPR."
+            )
 
     # ----------------------------
-    # 3) Reference line q = v k
+    # 4) Reference line q = v k
     # ----------------------------
     if variable == "qk":
+        all_x = df_segment[x_col].dropna()
         if xlim is not None:
             xmin, xmax = xlim
         else:
-            xmin = max(0, float(np.nanmin(X)))
-            xmax = float(np.nanmax(X)) * 1.05
+            xmin = max(0, float(np.nanmin(all_x))) if len(all_x) else 0
+            xmax = float(np.nanmax(all_x)) * 1.05 if len(all_x) else 1
 
         xs = np.linspace(xmin, xmax, 300)
-        ax.plot(
+        ref_line = ax.plot(
             xs, speed_thre * xs,
             linestyle="--",
             linewidth=2.6,
             color="black",
             label=rf"$q = {speed_thre}k$"
-        )
+        )[0]
 
+        all_handles = fd_handles + [ref_line]
         leg = ax.legend(
+            handles=all_handles,
             loc="upper right",
-            fontsize=25,
+            fontsize=14,
             frameon=True,
             fancybox=True,
             borderpad=0.6,
-            handlelength=2.2
+            handlelength=2.2,
         )
         leg.get_frame().set_alpha(0.95)
+    else:
+        if fd_handles:
+            leg = ax.legend(
+                handles=fd_handles,
+                loc="upper right",
+                fontsize=14,
+                frameon=True,
+                fancybox=True,
+                borderpad=0.6,
+            )
+            leg.get_frame().set_alpha(0.95)
 
     # ----------------------------
-    # 4) Labels, limits, title
+    # 5) Labels, limits, title
     # ----------------------------
     if xlim is not None:
         ax.set_xlim(*xlim)
@@ -155,7 +219,7 @@ def plot_linear_by_group_FD(
     ax.set_title(ttl, fontsize=30, pad=14)
 
     # ----------------------------
-    # 5) Ticks + grid
+    # 6) Ticks + grid
     # ----------------------------
     ax.tick_params(axis="both", which="major", labelsize=18, length=6, width=1.2)
     ax.tick_params(axis="both", which="minor", length=3, width=1.0)
@@ -172,19 +236,21 @@ def plot_linear_by_group_FD(
     ax.spines["bottom"].set_linewidth(1.2)
 
     # ----------------------------
-    # 6) Save (PNG + PDF)
+    # 7) Save
     # ----------------------------
     if save_name is None:
         os.makedirs(cfg["save_dir"], exist_ok=True)
         save_name = (
             f"{cfg['save_dir']}/FD_clean_{cfg['spatial_scope']}_"
             f"{cfg.get('VDS_num','multi')}_{variable}_"
-            f"{cfg['temporal_scale']}_{cfg['period_filter']}_"
+            f"{cfg['temporal_scale']}_{cfg.get('period_filter','all')}_"
             f"{version_key}_{cfg['method']}"
         )
 
     fig.savefig(save_name + ".png", bbox_inches="tight")
     plt.close(fig)
+
+    return skip_flags
 
 
 def annotate_segment_selection_for_plot(df_peaks, cfg, recurrent_col, selected_col='segment_selected'):
@@ -335,19 +401,16 @@ def plot_fd_all_in_one_png(
     os.makedirs(cfg["save_dir"], exist_ok=True)
 
     cfg_i = cfg.copy()
-    
+
     png_paths = []
-    png_map = {}   # vds_id -> png_path for corridor lookup
+    png_map = {}    # vds_id -> png_path for corridor lookup
+    skip_map = {}   # vds_id -> {'AM': bool, 'PM': bool}
+
     for vds_id, vds_lab in zip(vds_ids, vds_labels):
         cfg_i["VDS_num"] = vds_id
         cfg_i["VDS_label"] = vds_lab
 
         print(cfg_i["VDS_num"])
-        # fn_segment = (
-        #     f"{cfg_i['file_path']}/04_peak_period_result/c_daily_traffic_segment_{cfg_i['spatial_scope']}_"
-        #     f"{cfg_i['VDS_num']}_{cfg_i['temporal_scale']}_{cfg_i['aggregate_timeframe']}_"
-        #     f"{cfg_i['method']}_{cfg_i['congest_method']}.csv"
-        # )
         fn_segment = (
             f"./04_peak_period_result/c_daily_traffic_segment_{cfg_i['spatial_scope']}_"
             f"{cfg_i['VDS_num']}_{cfg_i['temporal_scale']}_{cfg_i['aggregate_timeframe']}_"
@@ -361,17 +424,6 @@ def plot_fd_all_in_one_png(
 
         df_segment = pd.read_csv(fn_segment)
         df_division = pd.read_csv(fn_division)
-        
-        # _ensure_local(fn_division)
-        
-
-        # period filter
-        if cfg_i.get("period_filter", "") in ["morning", "afternoon"]:
-            df_segment["start_time_int"] = pd.to_datetime(df_segment["start_time"]).dt.time
-            if cfg_i["period_filter"] == "afternoon":
-                df_segment = df_segment[df_segment["start_time_int"] >= pd.to_datetime("12:00").time()]
-            else:
-                df_segment = df_segment[df_segment["start_time_int"] < pd.to_datetime("12:00").time()]
 
         # special filter for VDS 1205541
         if cfg_i.get("spatial_scope") == "single" and str(cfg_i.get("VDS_num")) == "1205541":
@@ -379,7 +431,7 @@ def plot_fd_all_in_one_png(
             df_segment = df_segment[~df_segment["month"].isin(["2401", "2402", "2403"])]
 
         save_base = f"{cfg_i['save_dir']}/FD_{vds_lab}_{vds_id}_{variable}"
-        plot_linear_by_group_FD(
+        flags = plot_linear_by_group_FD(
             df_segment=df_segment,
             df_division=df_division,
             variable=variable,
@@ -391,6 +443,8 @@ def plot_fd_all_in_one_png(
             title_suffix=title_suffix,
             save_name=save_base
         )
+        skip_map[str(vds_id)] = flags
+
         png_path = save_base + ".png"
         png_paths.append(png_path)
         png_map[vds_id] = png_path
@@ -451,7 +505,6 @@ def plot_fd_all_in_one_png(
             corridor_out_paths.append(out_png)
             print(f"Saved corridor {corridor_name}: {out_png}")
 
-        # Return last path for API compatibility; full list available if needed
         out_png = corridor_out_paths[-1] if corridor_out_paths else None
     else:
         # --- Original flat grid layout ---
@@ -492,6 +545,6 @@ def plot_fd_all_in_one_png(
         plt.close(fig)
 
         print("Saved:", out_png)
-    return out_png
+    return out_png, skip_map
 
 

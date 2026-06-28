@@ -474,19 +474,11 @@ def _run_pipeline_core(cfg: dict, stages: list):
 
     if 2 in stages:
         print("\n" + "=" * 60)
-        print("STAGE 2: Recurrent Peak Detection")
+        print("STAGE 2: Fundamental Diagram + Density Threshold Check")
         print("=" * 60)
 
-        rc_result = run_recurrent_peak_pipeline(cfg)
-        if rc_result:
-            print(f"  Recurrent output tag: {rc_result.get('output_tag', 'N/A')}")
-            print(f"  Labeled CSV: {rc_result.get('labeled_csv', 'N/A')}")
-        else:
-            print("  No recurrent result returned.")
-
-
-        if cfg['plots']['plot_fundamental_diagram']:
-
+        skip_map = {}
+        if cfg['plots'].get('plot_fundamental_diagram'):
             if cfg['data_format'] == 'section_combined':
                 _xlim = [0, 600]
                 _ylim = [0, 8000]
@@ -496,20 +488,37 @@ def _run_pipeline_core(cfg: dict, stages: list):
             elif cfg['data_format'] == 'raw':
                 _xlim = [0, 150]
                 _ylim = [0, 2000]
-            
+
             try:
                 print(_xlim, _ylim)
-                plot_fd_all_in_one_png(
+                _, skip_map = plot_fd_all_in_one_png(
                     cfg=cfg, variable="qk", version_key="speed",
-                    speed_thre=cfg['speedbased_params']['offpeak_ff_speed_threshold'], xlim=_xlim, ylim=_ylim,
+                    speed_thre=cfg['speedbased_params']['offpeak_ff_speed_threshold'],
+                    xlim=_xlim, ylim=_ylim,
                     title_suffix="", out_name="FD_all_in_one"
                 )
+                cfg['_fd_skip_map'] = skip_map
             except Exception as e:
                 print(f"  FD plotting skipped or failed: {e}")
+        else:
+            print("  plot_fundamental_diagram is disabled; skip_map will be empty.")
+            cfg['_fd_skip_map'] = {}
 
     if 3 in stages:
         print("\n" + "=" * 60)
-        print("STAGE 3: BPR Calibration")
+        print("STAGE 3: Recurrent Peak Detection")
+        print("=" * 60)
+
+        rc_result = run_recurrent_peak_pipeline(cfg)
+        if rc_result:
+            print(f"  Recurrent output tag: {rc_result.get('output_tag', 'N/A')}")
+            print(f"  Labeled CSV: {rc_result.get('labeled_csv', 'N/A')}")
+        else:
+            print("  No recurrent result returned.")
+
+    if 4 in stages:
+        print("\n" + "=" * 60)
+        print("STAGE 4: BPR Calibration")
         print("=" * 60)
 
         cfg_bpr = copy.deepcopy(cfg)
@@ -562,9 +571,15 @@ def run_full_pipeline(cfg: dict, stages: list = None):
     Runs the specified stages of the BPR analysis pipeline.
     For 'section_combined' data, auto-expands each base VDS into its
     individual sections and runs the pipeline per section.
+
+    Stages:
+        1 — Daily peak detection
+        2 — Fundamental Diagram plot + density threshold check
+        3 — Recurrent peak classification
+        4 — BPR calibration
     """
     if stages is None:
-        stages = [1, 2, 3]
+        stages = [1, 2, 3, 4]
 
     # ── section_combined expansion ──────────────────────────────
     if cfg.get('data_format') == 'section_combined' and cfg.get('spatial_scope') == 'single':

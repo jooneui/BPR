@@ -40,7 +40,7 @@ def prepare_peak_table(config_rc, vds_id, all_periods):
     _ensure_local(fp)
     df_raw = pd.read_csv(fp)
 
-    df_raw['date'] = df_raw['date'].astype(str)
+    df_raw['date'] = df_raw['date'].astype(str).str.zfill(6)
     df_raw['date_dt'] = pd.to_datetime(df_raw['date'], format='%y%m%d', errors='coerce')
     df_raw['dayofweek'] = df_raw['date_dt'].dt.strftime('%a')
     min_date = df_raw['date_dt'].min()
@@ -1180,14 +1180,27 @@ def run_band_recurrent_pipeline(
     all_processed = []
     all_meta_rows = []
 
+    _AM_PM_TO_PERIOD = {'AM': 'morning-peak', 'PM': 'afternoon-peak'}
+    fd_skip_map = config_rc.get('_fd_skip_map', {})
+
     for vds_id in config_rc['VDS_list']:
         print(f'Running recurrent detection for VDS {vds_id} ({output_tag})')
+        vds_flags = fd_skip_map.get(str(vds_id), {})
+        skipped_periods = {
+            period_name
+            for am_pm, period_name in _AM_PM_TO_PERIOD.items()
+            if vds_flags.get(am_pm) is False
+        }
+
         df_peaks = prepare_peak_table(config_rc, str(vds_id), ALL_PERIODS)
         processed_facets = []
         facet_meta = {}
 
         for day in DAY_ORDER:
             for per in ALL_PERIODS:
+                if per in skipped_periods:
+                    print(f"  [SKIP] VDS {vds_id} {per} ({day}) — failed FD density threshold.")
+                    continue
                 facet_df = df_peaks[(df_peaks['dayofweek'] == day) & (df_peaks['period'] == per)].copy()
                 facet_out, meta = classify_facet_func(facet_df, per)
                 processed_facets.append(facet_out)
@@ -1206,6 +1219,9 @@ def run_band_recurrent_pipeline(
             all_meta_rows.append(row)
         
 
+        if not processed_facets:
+            print(f"  [SKIP] VDS {vds_id}: all periods skipped — no recurrent output generated.")
+            continue
         df_out = pd.concat(processed_facets, ignore_index=True).copy()
         df_out['vds_id'] = str(vds_id)
         df_out = annotate_segment_selection_for_plot(df_out, config_rc, recurrent_col)

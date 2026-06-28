@@ -271,9 +271,16 @@ def skip_if_missing(rawdata, config):
     #     col_name = f'flow_{lane}'
     #     # Count total zeros in this lane
     #     zero_count = (rawdata[col_name] == 0).sum()
+
+    #     if zero_count >= (total_expected * config['missing_ratio']):
+    #         print(f"  Skipping due to too many zero slots in: {zero_count}")
+    #         print(rawdata.loc[0, 'time'])
+    #         return True
+
     row_count = len(rawdata)
 
-    if  row_count < (total_expected * (1-config['missing_ratio'])):
+    # if  row_count < (total_expected * (1-config['missing_ratio'])):
+    if  row_count < total_expected :
         print(f"  Skipping due to too many missing slots in: {row_count}")
         print(rawdata.loc[0, 'time'])
         return True

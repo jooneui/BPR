@@ -209,12 +209,17 @@ def plot_bpr_section_grid(
 
                 show_legend = not (show_legend_only_first and global_counter[0] != 0)
                 use_xlim = xlim_list[global_counter[0]] if len(xlim_list) > 1 else xlim_list[0]
-                plot_bpr_single_panel(
-                    df_use=df_use, cfg=cfg_i, version_key=version_key,
-                    xlim=use_xlim, ylim=ylim, ax=ax,
-                    xcol=xcol, ycol=ycol,
-                    show_legend=show_legend, font_add=font_add,
-                )
+                try:
+                    plot_bpr_single_panel(
+                        df_use=df_use, cfg=cfg_i, version_key=version_key,
+                        xlim=use_xlim, ylim=ylim, ax=ax,
+                        xcol=xcol, ycol=ycol,
+                        show_legend=show_legend, font_add=font_add,
+                    )
+                except Exception as e:
+                    print(f"  [BPR panel error] VDS {vds_id}: {e}")
+                    ax.text(0.5, 0.5, f"Plot error\n{vds_id}",
+                            ha='center', va='center', transform=ax.transAxes)
                 tag = vds_label_map.get(str(vds_id), str(vds_id))
                 ax.set_title(f"{tag}", fontsize=14 + font_add, pad=6)
                 global_counter[0] += 1
@@ -225,10 +230,14 @@ def plot_bpr_section_grid(
 
             corridor_tag = corridor_name.replace(' ', '').replace('-', '')
             out_path = os.path.join(save_dir, f"BPR_{out_name}_{corridor_tag}.png")
-            fig.savefig(out_path, dpi=dpi, bbox_inches='tight')
-            plt.close(fig)
-            saved_paths.append(out_path)
-            print(f"Saved corridor {corridor_name}: {out_path}")
+            try:
+                fig.savefig(out_path, dpi=dpi, bbox_inches='tight')
+                saved_paths.append(out_path)
+                print(f"Saved corridor {corridor_name}: {out_path}")
+            except Exception as e:
+                print(f"  [BPR save error] corridor {corridor_name}: {e}")
+            finally:
+                plt.close(fig)
 
     else:
         # --- Original flat pagination mode (no corridor_groups) ---

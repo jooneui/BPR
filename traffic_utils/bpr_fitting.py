@@ -147,7 +147,7 @@ def merge_segment_id(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
 
     # Merge on matching keys
     work = df.copy()
-    work['date'] = work['date'].astype(str)
+    work['date'] = work['date'].astype(str).str.zfill(6)
     merge_on = [c for c in ['date', 'period', 'dayofweek'] if c in work.columns and c in df_seg.columns]
     if not merge_on:
         print('[merge_segment_id] No matching merge columns, skipping merge')
@@ -168,7 +168,7 @@ def merge_segment_id(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
 def load_and_annotate(cfg: dict) -> pd.DataFrame:
     fp = build_file_path(cfg)
     df = pd.read_csv(fp)
-    df['date'] = df['date'].astype(str)
+    df['date'] = df['date'].astype(str).str.zfill(6)
     df['month'] = df['date'].str.slice(0, 4)
 
     if cfg['free_tt_mode'] == 'by_date_offpeak':
@@ -269,7 +269,7 @@ def aggregate_segment_level_bpr(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
         dfl = out[out['period'] == period].copy()
         if dfl.empty:
             continue
-        for day, g in dfl.groupby('dayofweek', dropna=False):
+        for day, g in dfl.groupby('dayofweek', dropna=False, observed=True):
             g = g.sort_values(['week_num', 'date_dt']).copy()
             # If segment_id is provided by the recurrent detection (RDP_v),
             # use it to keep adjacent retained segments separate.
@@ -457,8 +457,23 @@ def apply_filters(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
 
 
 def prepare_bpr_dataframe(cfg: dict) -> pd.DataFrame:
+    _PERIOD_TO_AM_PM = {'morning-peak': 'AM', 'afternoon-peak': 'PM'}
     df_all = load_and_annotate(cfg)
     df_use = apply_filters(df_all, cfg)
+
+    fd_skip_map = cfg.get('_fd_skip_map', {})
+    vds_key = str(cfg.get('VDS_num', ''))
+    if fd_skip_map and vds_key in fd_skip_map:
+        skipped_periods = {
+            period_name
+            for period_name, am_pm in _PERIOD_TO_AM_PM.items()
+            if fd_skip_map[vds_key].get(am_pm) is False
+        }
+        if skipped_periods:
+            before = len(df_use)
+            df_use = df_use[~df_use['period'].isin(skipped_periods)]
+            print(f"[BPR] VDS {vds_key}: dropped {before - len(df_use)} rows for skipped periods {skipped_periods}")
+
     if cfg.get('segment_aggregation'):
         df_use = aggregate_segment_level_bpr(df_use, cfg)
     return to_categorical_day(df_use.copy())
