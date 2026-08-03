@@ -113,9 +113,25 @@ def plot_linear_by_group_FD(
         lambda h: 'AM' if h < 12 else 'PM'
     )
 
-    den_threshold   = cfg.get('den_threshold', 40)
-    count_threshold = cfg.get('count_threshold', 100)
+    den_threshold = cfg.get('den_threshold', 40)
     vds_id = cfg.get('VDS_num', '?')
+
+    # Sufficiency screening is purely rate-based: a period proceeds only if its
+    # congested-point count per year of record reaches per_year_threshold.
+    # Record length = number of distinct calendar days that actually carry data
+    # (gaps excluded), so the bar scales with real coverage rather than the raw
+    # first→last span.
+    per_year_threshold = cfg.get('count_threshold_per_year', 50)
+    record_years = 1.0
+    if 'date' in df_segment.columns:
+        # Strip the '.0' a float-typed date column produces, else every value
+        # fails the '%y%m%d' parse and the record length falls back to 1 year.
+        _d = pd.to_datetime(df_segment['date'].astype(str)
+                            .str.replace(r'\.0$', '', regex=True).str.zfill(6),
+                            format='%y%m%d', errors='coerce')
+        if _d.notna().any():
+            n_days = _d.dt.normalize().nunique()
+            record_years = max(n_days / 365.25, 1e-9)
 
     skip_flags = {}
     fd_handles = []
@@ -140,10 +156,12 @@ def plot_linear_by_group_FD(
             continue
         n_total = len(sub)
         n_over  = int((sub['density'] > den_threshold).sum())
-        passes  = n_over >= count_threshold
+        rate = n_over / record_years
+        passes = rate >= per_year_threshold
         skip_flags[period_label] = passes
 
-        lbl = f"{period_label}  ({n_over} / {n_total} over {den_threshold})"
+        lbl = (f"{period_label}  ({n_over} / {n_total} over {den_threshold}"
+               f"; {rate:.0f}/yr)")
         ax.scatter(
             sub[x_col], sub[y_col],
             s=14, alpha=0.18, linewidths=0,
@@ -154,8 +172,9 @@ def plot_linear_by_group_FD(
         if not passes:
             print(
                 f"[SKIP] VDS {vds_id} {period_label}: "
-                f"{n_over} / {n_total} points over density {den_threshold} "
-                f"(< {count_threshold} required) — will skip recurrent and BPR."
+                f"{rate:.1f}/yr < {per_year_threshold}/yr required "
+                f"({n_over} / {n_total} points over density {den_threshold}) "
+                f"— will skip recurrent and BPR."
             )
 
     # ----------------------------
@@ -331,7 +350,7 @@ def plot_common_points(ax, data, recurrent_col, excluded_col, selected_col='segm
 
     if (len(real_p) != 0):
         
-        ax.vlines(real_p['week_num'], real_p['start_hour'], real_p['end_hour'], color='lightgrey', alpha=0.8, linewidth=3)
+        # ax.vlines(real_p['week_num'], real_p['start_hour'], real_p['end_hour'], color='lightgrey', alpha=0.8, linewidth=3)
         ax.scatter(rec_selected['week_num'], rec_selected['start_hour'], color='teal', s=40, zorder=5)
         ax.scatter(rec_selected['week_num'], rec_selected['end_hour'], color='teal', s=40, zorder=5)
 

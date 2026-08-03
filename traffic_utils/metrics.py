@@ -30,7 +30,7 @@ def compute_metrics(group, division_idx, config, group_num, criterion):
     flow_good, speed_good, occ_good = flows[mask], speeds[mask], occs[mask]
     
     
-    if (config['temporal_scale'] in ('speedbasedpeak', 'peak')) and (division_idx != 0):
+    if (config['temporal_scale'] in ('speedbasedpeak', 'peak', 'hour_split')) and (division_idx != 0):
         # len(group)-1 reason: 
         # if congested period is detected as 8:00:30 ~ 8:55:30 then, the division==1 ranges will be 8:00:00 to 9:00:00. 
         # so, we need to "-1" to eliminate each side of 2:30 min.

@@ -17,6 +17,10 @@ from .classification import (
 # rdp.py: 'rdp_v': rdp itself algorithm: the manual function to recursively find the changepoint by RDP. it is applied in the "rdp_v_segmentation_pea"
 import numpy as np
 
+# Emit the per-station-day PELT/RDP diagnostic PNG from rdp_v_segmentation_peak.
+# Default True preserves existing notebook behaviour; set False for bulk runs.
+SAVE_PELT_DIAGNOSTIC_PLOTS = True
+
 def rdp_v(points, epsilon):
     """
     Ramer–Douglas–Peucker with **vertical error** (y-axis) and full recursion.
@@ -471,7 +475,11 @@ def rdp_v_segmentation_peak(
     peak_list = _build_peak_list(df, aggregate_timeframe)
 
     # 9) Plot + return (reuse your existing plotter)
-    PELT_plot(df, bp_real.tolist(), date, VDS_num, aggregate_timeframe, peak_list, method, epsilon)
+    # One PNG per station-day. Set SAVE_PELT_DIAGNOSTIC_PLOTS = False for bulk
+    # runs: on cloud-synced storage the thousands of small writes are slow and
+    # can raise TimeoutError partway through Stage 1.
+    if SAVE_PELT_DIAGNOSTIC_PLOTS:
+        PELT_plot(df, bp_real.tolist(), date, VDS_num, aggregate_timeframe, peak_list, method, epsilon)
     return df, peak_list
 
 # Version4: RDP based

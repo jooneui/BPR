@@ -24,7 +24,7 @@ from .plotting_stage1 import (
 )
 from .plotting_stage2 import plot_fd_all_in_one_png
 from .metrics import process_daily_traffic
-from .plotting_stage3 import plot_bpr_all_in_one_png_3x3
+from .plotting_stage3 import plot_bpr_all_in_one_png_3x3, plot_bpr_grid_vdslist
 from .recurrent import build_recurrent_output_tag, run_recurrent_peak_pipeline
 from .segmentation import detect_speed_peaks
 
@@ -40,6 +40,32 @@ def _should_save(cfg: dict, flag_name: str) -> bool:
 def cleaned_file_list(folder: Path) -> list[str]:
     files = sorted(p.name for p in folder.iterdir() if p.is_file())
     return [f for f in files if f != '.DS_Store']
+
+def _peak_window_divisions(traffic, cfg):
+    """Return an (n,3) int array [segment, division, seg_con] for the fixed
+    peak-hour unit. Division 1 = AM window, 2 = PM window (0 elsewhere);
+    seg_con marks any window as a congested fit point.
+
+    Uses cfg['peak_hour_windows'] = {'morning': (lo,hi), 'afternoon': (lo,hi)}
+    in minutes from midnight; falls back to the legacy scalar
+    cfg['peak_hour_window'] as the morning-only window.
+    """
+    step = int(cfg['aggregate_timeframe'])
+    minute = np.arange(len(traffic)) * step
+    div = np.zeros(len(traffic), dtype=np.int32)
+    windows = cfg.get('peak_hour_windows')
+    if windows is None:
+        lo, hi = cfg['peak_hour_window']
+        windows = {'morning': (lo, hi)}
+    am = windows.get('morning')
+    pm = windows.get('afternoon')
+    if am is not None:
+        div[(minute >= am[0]) & (minute < am[1])] = 1
+    if pm is not None:
+        div[(minute >= pm[0]) & (minute < pm[1])] = 2
+    seg_con = (div > 0).astype(np.int32)
+    return np.column_stack([div, div, seg_con])
+
 
 def apply_peak_detection(df, date, cfg):
     """Set 'division'/'segment' per cfg['temporal_scale']; return (df, peaks_or_None)."""
@@ -107,6 +133,24 @@ def run_single_vds(cfg, base_path: Path, vds_num: str, timeframe_min: int, c_lan
                 traffic['segment'] = hour_id
                 traffic['division'] = hour_id
                 peaks = []
+            elif cfg['temporal_scale'] == 'peak':
+                # Fixed clock-window peak hour(s): division 1 = AM window,
+                # division 2 = PM window (minutes from midnight); all other time
+                # is left at division 0 and dropped downstream. compute_metrics
+                # then labels div 1/2 morning-/afternoon-peak by their time range
+                # against cfg['peak_periods'].
+                traffic[['segment', 'division', 'seg_con']] = _peak_window_divisions(traffic, cfg)
+                peaks = []
+            elif cfg['temporal_scale'] == 'hour_split':
+                # Hourly divisions labeled AM/PM (see the note in the other loop).
+                step = int(cfg['aggregate_timeframe'])
+                rows_per_hour = int(60 // step)
+                idx = np.arange(len(traffic))
+                hour_id = (idx // rows_per_hour) + 1
+                traffic['segment'] = hour_id
+                traffic['division'] = hour_id
+                traffic['seg_con'] = 1
+                peaks = []
 
             if peaks is not None:
                 set_peak_period = pd.concat(
@@ -145,6 +189,26 @@ def run_single_vds(cfg, base_path: Path, vds_num: str, timeframe_min: int, c_lan
 
             traffic['segment']=hour_id
             traffic['division']=hour_id
+            peaks = []
+
+        elif cfg['temporal_scale'] == 'peak':
+            # Fixed clock-window peak hour(s): division 1 = AM window,
+            # division 2 = PM window. See the note in the other loop.
+            traffic[['segment', 'division', 'seg_con']] = _peak_window_divisions(traffic, cfg)
+            peaks = []
+
+        elif cfg['temporal_scale'] == 'hour_split':
+            # Hourly divisions (24/day) that are additionally labeled AM/PM:
+            # each clock hour becomes its own division; compute_metrics then
+            # assigns morning-peak (start hour < 12) or afternoon-peak (>= 12)
+            # via cfg['peak_periods']. seg_con=1 marks every hour as a fit point.
+            step = int(cfg['aggregate_timeframe'])
+            rows_per_hour = int(60 // step)
+            idx = np.arange(len(traffic))
+            hour_id = (idx // rows_per_hour) + 1
+            traffic['segment'] = hour_id
+            traffic['division'] = hour_id
+            traffic['seg_con'] = 1
             peaks = []
 
         # traffic.to_csv(f"./traffic_{vds_num}_{fname}.csv")
@@ -537,22 +601,35 @@ def _run_pipeline_core(cfg: dict, stages: list):
                     _xlim = [_override.get(str(v), None) for v in cfg.get('VDS_list', [])] or [None]
                 else:
                     _xlim = [None]  # data-driven per panel
-                if cfg.get('temporal_scale') == 'entireday':
+                if cfg.get('bpr_ylim') is not None:
+                    _ylim = cfg['bpr_ylim']
+                elif cfg.get('temporal_scale') == 'entireday':
                     _ylim = [-4, 0]
                 elif cfg.get('spatial_scope') == 'network':
                     _ylim = [-6, 1]
                 else:
-                    _ylim = [-3.5, 3]
+                    _ylim = None  # falls back to BPR_YLIM_DEFAULT
                 plot_bpr_all_in_one_png_3x3(
                     cfg=cfg_bpr_plot,
                     version_key=cfg.get('bpr_version_key', 'v3'),
                     xlim=_xlim,
                     ylim=_ylim,
-                    suptitle="Log-Transformed BPR Function",
                     out_name=build_recurrent_output_tag(cfg)
                 )
 
-                
+                # Optional VDS-list-driven grid: 3 columns, rows = ceil(n/3),
+                # panels in VDS_list order, AM/PM overlaid. Runs in addition to
+                # the per-corridor grid above.
+                if cfg.get('plots', {}).get('plot_bpr_grid_vdslist'):
+                    plot_bpr_grid_vdslist(
+                        cfg=cfg_bpr_plot,
+                        version_key=cfg.get('bpr_version_key', 'v3'),
+                        ncols=cfg.get('bpr_grid_vdslist_ncols', 3),
+                        xlim=_xlim,
+                        ylim=_ylim,
+                        out_name=build_recurrent_output_tag(cfg),
+                    )
+
             except Exception as e:
                 print(f"  BPR fit plotting skipped or failed: {e}")
 

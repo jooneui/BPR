@@ -22,8 +22,8 @@ def v3_lnN_vs_lnttau():
     return (
         "ln_totaldemandoverlanes",
         "ln_t_tau",
-        r"$\ln(Q)$",
-        r"$\ln\!\left(\frac{z(Q)}{\zeta}-1\right)$",
+        r"$\ln(N)$",
+        r"$\ln\!\left(\frac{z(N)}{\zeta}-1\right)$",
     )
 
 def v10_lnq_vs_lnttau():
@@ -147,7 +147,11 @@ def merge_segment_id(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
 
     # Merge on matching keys
     work = df.copy()
-    work['date'] = work['date'].astype(str).str.zfill(6)
+    # Strip the trailing '.0' the same way as the labeled side above: when the
+    # Stage 1 CSV has any missing date, pandas reads the column as float and
+    # every key stringifies to e.g. '100105.0', which then matches nothing.
+    work['date'] = (work['date'].astype(str)
+                    .str.replace(r'\.0$', '', regex=True).str.zfill(6))
     merge_on = [c for c in ['date', 'period', 'dayofweek'] if c in work.columns and c in df_seg.columns]
     if not merge_on:
         print('[merge_segment_id] No matching merge columns, skipping merge')
@@ -168,7 +172,10 @@ def merge_segment_id(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
 def load_and_annotate(cfg: dict) -> pd.DataFrame:
     fp = build_file_path(cfg)
     df = pd.read_csv(fp)
-    df['date'] = df['date'].astype(str).str.zfill(6)
+    # A blank trailing row makes pandas read 'date' as float, so every value
+    # stringifies as '70101.0'; strip that before padding.
+    df['date'] = (df['date'].astype(str)
+                  .str.replace(r'\.0$', '', regex=True).str.zfill(6))
     df['month'] = df['date'].str.slice(0, 4)
 
     if cfg['free_tt_mode'] == 'by_date_offpeak':
@@ -522,6 +529,10 @@ def fit_bpr_ols_stats(dfg, xcol=None, ycol=None):
     reset_stat = float(reset_res.fvalue)
     reset_p = float(reset_res.pvalue)
 
+    # Mean Absolute Error in the log-linear fit space (same space as R^2):
+    # mean(|residual|) of y = a + b x.
+    mae = float(np.mean(np.abs(model.resid)))
+
     y_hat = model.fittedvalues
     X_link = sm.add_constant(np.column_stack([y_hat, y_hat ** 2]))
     link_model = sm.OLS(y, X_link).fit()
@@ -538,6 +549,7 @@ def fit_bpr_ols_stats(dfg, xcol=None, ycol=None):
         'beta_t': float(model.tvalues[1]),
         'beta_p': float(model.pvalues[1]),
         'r2': float(model.rsquared),
+        'mae': mae,
         'n': int(model.nobs),
         'jb_stat': float(jb_stat),
         'jb_p': float(jb_pvalue),

@@ -40,7 +40,11 @@ def prepare_peak_table(config_rc, vds_id, all_periods):
     _ensure_local(fp)
     df_raw = pd.read_csv(fp)
 
-    df_raw['date'] = df_raw['date'].astype(str).str.zfill(6)
+    # A blank trailing row makes pandas read 'date' as float, so every value
+    # stringifies as '70101.0' and then fails the '%y%m%d' parse below, which
+    # silently empties the facet (N_qualifying == 0). Strip that before padding.
+    df_raw['date'] = (df_raw['date'].astype(str)
+                      .str.replace(r'\.0$', '', regex=True).str.zfill(6))
     df_raw['date_dt'] = pd.to_datetime(df_raw['date'], format='%y%m%d', errors='coerce')
     df_raw['dayofweek'] = df_raw['date_dt'].dt.strftime('%a')
     min_date = df_raw['date_dt'].min()
@@ -415,23 +419,17 @@ def build_recurrent_output_tag(config_rc):
         eps_e = normalize_period_mapping(params.get('epsilon_end_by_period', 1.5))
         minw  = config_rc.get('segment_min_weeks_by_period', {})
         selector = normalize_period_mapping(params.get('selector_by_period', 'both'))
-        hgap = params.get('hour_gap_threshold_by_period', {})
-        svar = normalize_period_mapping(params.get('second_var_by_period', 'end_hour'))
         fvar = normalize_period_mapping(params.get('fixed_var_by_period', 'start_hour'))
         parts = ['RDP_v']
         for per in ALL_PERIODS:
             tag = _period_tag(per)
             sel = selector.get(per, 'both')
-            hg = hgap.get(per, 2.0)
-            sv = svar.get(per, 'end_hour')
             fv = fvar.get(per, 'start_hour')
-            sv_short = {'end_hour': 'end', 'peak_duration': 'dur', 'start_hour': 'start'}[sv]
-            fv_short = {'start_hour': 'sh', 'end_hour': 'eh'}[fv]
+            fv_short = {'start_hour': 'sh', 'end_hour': 'eh'}.get(fv, fv[:2])
             parts.append(
                 f"{tag}_es{eps_s.get(per, 1.5)}_ee{eps_e.get(per, 1.5)}"
-                f"_min{minw.get(per, 2)}_hg{hg}_{sel[0]}_{fv_short}_{sv_short}"
+                f"_min{minw.get(per, 2)}_{sel[0]}_{fv_short}"
             )
-        # Append _drop if drop_multiplecongestion_days is True
         if config_rc.get('drop_multiplecongestion_days', False):
             parts.append('drop')
         return '_'.join(parts)
@@ -618,90 +616,56 @@ def classify_facet_rdpv(
     epsilon_end=1.5,
     segment_min_weeks=2,
     selector='both',
-    hour_gap_threshold=2.0,
-    second_var='end_hour',
     fixed_var='start_hour',
     drop_multiplecongestion_days=False,
     **_ignored,
 ):
     """RDP_v-based recurrent peak detection per (day-of-week, period) facet.
 
-    Applies rdp_v() to cumulative fixed-variable and secondary-variable series
-    over calendar weeks.  Stable linear segments correspond to temporally
-    consistent peak windows (recurrent); short or unstable segments are
-    excluded.
+    Builds cumulative start-hour (S) and end-hour (E) series over the
+    qualifying-week subsequence (weeks with is_peak==1 only).  PM times are
+    first shifted by -12 so that epsilon carries the same geometric meaning
+    across AM and PM.  RDP_v is applied independently to S and E; interior
+    breakpoints from both series are unioned with calendar-gap positions
+    (weeks in the qualifying subsequence separated by more than one calendar
+    week) to form segment boundaries.  Segments with fewer than
+    segment_min_weeks qualifying weeks are excluded.
 
-    The behaviour depends on ``fixed_var``, which determines which variable
-    is temporally anchored ("fixed") and which carries the variation
-    ("secondary"):
-
-    fixed_var='start_hour' (default, morning-peak convention):
-        Fixed curve   = cumulative start_hour   (RDP with epsilon_start)
-        Secondary var = end_hour or peak_duration (RDP with epsilon_end)
-        Valid second_var options: 'end_hour', 'peak_duration'
-
-    fixed_var='end_hour' (afternoon-peak convention):
-        Fixed curve   = cumulative end_hour     (RDP with epsilon_end)
-        Secondary var = start_hour or peak_duration (RDP with epsilon_start)
-        Valid second_var options: 'start_hour', 'peak_duration'
+    fixed_var controls which variable is the temporal anchor and which epsilon
+    drives it:
+      'start_hour' (AM default): epsilon_start drives S; epsilon_end drives E
+      'end_hour'   (PM default): epsilon_end   drives E; epsilon_start drives S
 
     Parameters
     ----------
     facet_df : DataFrame
-        Rows for one (day-of-week, period) facet from prepare_peak_table().
-        Must have columns: date_dt, is_peak, start_hour, end_hour.
+        One (day-of-week, period) facet from prepare_peak_table().
     period : str
         'morning-peak' or 'afternoon-peak'.
     epsilon_start : float
-        RDP vertical tolerance.  When fixed_var='start_hour' this controls
-        the start-hour curve; when fixed_var='end_hour' this controls the
-        secondary-variable curve.
+        RDP vertical tolerance for the start-hour cumulative series.
     epsilon_end : float
-        RDP vertical tolerance.  When fixed_var='start_hour' this controls
-        the secondary-variable curve; when fixed_var='end_hour' this
-        controls the end-hour curve.
+        RDP vertical tolerance for the end-hour cumulative series.
     segment_min_weeks : int
-        Minimum number of is_peak==1 weeks within a segment for it to be
-        labelled recurrent.
+        Minimum qualifying weeks per segment to be labelled recurrent (L).
     selector : str
-        'start_only', 'end_only', or 'both' — which cumulative curves to use.
-        When fixed_var='start_hour', 'start_only' = fixed curve only,
-        'end_only' = secondary curve only.
-        When fixed_var='end_hour', 'end_only' = fixed curve only,
-        'start_only' = secondary curve only.
-    hour_gap_threshold : float
-        Maximum allowed difference (in hours) between adjacent peak weeks'
-        fixed-variable or second-variable before forcing a segment split.
-        Set to 0 to disable.
-    second_var : str
-        'end_hour' — secondary is end_hour (only valid with
-        fixed_var='start_hour').
-        'start_hour' — secondary is start_hour (only valid with
-        fixed_var='end_hour').
-        'peak_duration' — secondary is (end_hour - start_hour)
-        (valid with either fixed_var).
+        'both' (spec-compliant), 'start_only', or 'end_only'.
     fixed_var : str
-        'start_hour' (default) — start_hour is the fixed anchor,
-        epsilon_start controls its RDP tolerance.
-        'end_hour' — end_hour is the fixed anchor, epsilon_end controls
-        its RDP tolerance.
+        'start_hour' (default) or 'end_hour'. Determines epsilon assignment.
     drop_multiplecongestion_days : bool
-        If True, drop all peaks on days that have multiple peak entries
-        (treat them as no-peak days in recurrent analysis).
-        If False (default), keep only the longest-duration peak per date
-        (tiebreak = earliest start_hour).
+        If True, treat days with multiple detected peaks as no-peak days.
 
     Returns
     -------
     out : DataFrame
-        facet_df with added columns recurrent_band, excluded_band.
+        facet_df with added columns recurrent_band, excluded_band, segment_id.
     meta : dict
-        Diagnostics: breakpoints, segments, etc.
+        Diagnostics: breakpoints, gap positions, segments, etc.
     """
     out = facet_df.copy()
     out['recurrent_band'] = False
     out['excluded_band'] = False
-    out['segment_id'] = np.nan   # will be set per retained segment
+    out['segment_id'] = np.nan
 
     meta = {
         'method': 'RDP_v',
@@ -709,284 +673,169 @@ def classify_facet_rdpv(
         'epsilon_end': epsilon_end,
         'segment_min_weeks': segment_min_weeks,
         'selector': selector,
-        'second_var': second_var,
         'fixed_var': fixed_var,
         'breakpoints_start': [],
         'breakpoints_end': [],
+        'gap_positions': [],
         'all_breakpoints': [],
         'breakpoint_weeks_start': [],
         'breakpoint_weeks_end': [],
+        'breakpoint_weeks_gap': [],
         'breakpoint_weeks': [],
         'segments': [],
         'multi_peak_days': 0,
+        'N_qualifying': 0,
     }
 
     # ── Step 0: Deduplicate multiple peaks per day ────────────────────────
-    out, n_dropped = _dedup_multiple_peaks(out, drop_multiplecongestion_days=drop_multiplecongestion_days, period=period)
+    out, n_dropped = _dedup_multiple_peaks(
+        out, drop_multiplecongestion_days=drop_multiplecongestion_days, period=period
+    )
     meta['multi_peak_days'] = n_dropped
 
-    # ── Step 1: Build calendar week index ────────────────────────────────
-    # Preserve original index to avoid duplicate-index errors in downstream concat.
-    # We use iloc-based positional indexing for labeling, so we only need
-    # a stable positional mapping, not the original index values.
-    out = out.sort_values('date_dt').reset_index(drop=False)
-    # Store the original index for later restoration
-    orig_index = out['index'].values if 'index' in out.columns else out.index.values
-    out = out.reset_index(drop=True)
+    # ── Step 1: Sort; isolate qualifying weeks (is_peak == 1) ────────────
+    out = out.sort_values('date_dt').reset_index(drop=True)
 
-    # ── Step 1b: Prepend artificial baseline row as RDP_v anchor ─────────
-    art_period_start = 0.0 if period == 'morning-peak' else 12.0
-    art_row = pd.Series({
-        'date_dt': pd.NaT,
-        'dayofweek': np.nan,
-        'is_peak': -5,
-        'start_hour': art_period_start,
-        'end_hour': art_period_start,
-        'week_num': 0,
-        'duration_hours': 0.0,
-        'vds_id': out['vds_id'].iloc[0] if 'vds_id' in out.columns else np.nan,
-        'period': period,
-    })
-    out = pd.concat([art_row.to_frame().T, out], ignore_index=True)
-    out = out.reset_index(drop=True)
+    peak_positions = np.where((out['is_peak'] == 1).to_numpy())[0]  # positions in out
+    N = len(peak_positions)
+    meta['N_qualifying'] = N
 
-    W_total = len(out)
-    if W_total <= 1:
-        # Only the artificial row — nothing to label
-        out = out.iloc[1:].reset_index(drop=True)
+    if N == 0:
         return out, meta
 
-    week_idx = np.arange(W_total)
-    is_peak_week = (out['is_peak'] == 1).to_numpy()
+    peak_df = out.iloc[peak_positions].reset_index(drop=True)
+    # peak_df.iloc[i] ↔ out.iloc[peak_positions[i]]
 
-    if is_peak_week.sum() == 0:
-        # No peak weeks at all — nothing to label
-        out = out.iloc[1:].reset_index(drop=True)
-        return out, meta
+    # ── Step 1b: Apply PM shift ───────────────────────────────────────────
+    # Centers both series at 0 so epsilon has identical geometric meaning for
+    # AM (hours ≈ 0–12) and PM (hours ≈ 12–24 → shifted to 0–12).
+    shift = 12.0 if period == 'afternoon-peak' else 0.0
+    start_shifted = peak_df['start_hour'].to_numpy(dtype=float) - shift
+    end_shifted   = peak_df['end_hour'].to_numpy(dtype=float) - shift
 
-    # Fractional hours; 0.0 for no-peak weeks (flat on cumulative curve)
-    start_hours_full = np.where(is_peak_week, out['start_hour'].to_numpy(dtype=float), 0.0)
-    end_hours_full   = np.where(is_peak_week, out['end_hour'].to_numpy(dtype=float), 0.0)
-
-    # Override art-row values so cumulative series starts from baseline
-    start_hours_full[0] = art_period_start
-    end_hours_full[0]   = art_period_start
-
-    # ── Step 1b: Determine fixed/secondary curves based on fixed_var ───
-    # fixed_var determines which time variable is the "anchor" (stable) and
-    # which carries the variation (secondary).  This determines:
-    #   (a) which epsilon controls which RDP curve
-    #   (b) which cumulative series is computed
-    #   (c) how breakpoints map to bp_start / bp_end in meta
+    # ── Step 1c: Epsilon assignment (fixed_var-aware) ────────────────────
+    # fixed_var='start_hour': eps_primary=epsilon_start (drives S), eps_secondary=epsilon_end (drives E)
+    # fixed_var='end_hour':   eps_primary=epsilon_end   (drives E), eps_secondary=epsilon_start (drives S)
     if fixed_var == 'start_hour':
-        # Default / morning-peak convention:
-        #   Fixed   = start_hour  → RDP with epsilon_start → bp_start
-        #   Secondary = second_var → RDP with epsilon_end   → bp_end
-        primary_full = start_hours_full
-        eps_primary = epsilon_start
-        primary_name = 'start'       # for breakpoint labels in meta
-        if second_var == 'peak_duration':
-            secondary_full = np.where(is_peak_week,
-                                       out['end_hour'].to_numpy(dtype=float) - out['start_hour'].to_numpy(dtype=float),
-                                       0.0)
-        elif second_var == 'end_hour':
-            secondary_full = end_hours_full
-        else:
-            raise ValueError(f"second_var='{second_var}' is not valid with fixed_var='start_hour'. "
-                             f"Use 'end_hour' or 'peak_duration'.")
-        eps_secondary = epsilon_end
-        secondary_name = 'end'       # for breakpoint labels in meta
+        eps_primary, eps_secondary = epsilon_start, epsilon_end
     elif fixed_var == 'end_hour':
-        # Afternoon-peak convention:
-        #   Fixed   = end_hour    → RDP with epsilon_end   → bp_end
-        #   Secondary = second_var → RDP with epsilon_start → bp_start
-        primary_full = end_hours_full
-        eps_primary = epsilon_end
-        primary_name = 'end'
-        if second_var == 'peak_duration':
-            secondary_full = np.where(is_peak_week,
-                                       out['end_hour'].to_numpy(dtype=float) - out['start_hour'].to_numpy(dtype=float),
-                                       0.0)
-        elif second_var == 'start_hour':
-            secondary_full = start_hours_full
-        else:
-            raise ValueError(f"second_var='{second_var}' is not valid with fixed_var='end_hour'. "
-                             f"Use 'start_hour' or 'peak_duration'.")
-        eps_secondary = epsilon_start
-        secondary_name = 'start'
+        eps_primary, eps_secondary = epsilon_end, epsilon_start
     else:
         raise ValueError(f"fixed_var must be 'start_hour' or 'end_hour', got '{fixed_var}'")
 
-    # ── Step 2: Compute cumulative series ────────────────────────────────
-    C_primary   = np.cumsum(primary_full)
-    C_secondary = np.cumsum(secondary_full)
+    # ── Step 2: Build cumulative series S_{0:N} and E_{0:N} ──────────────
+    # x = subsequence index n = 0..N; S_0 = E_0 = 0 by construction.
+    x  = np.arange(N + 1, dtype=float)
+    S  = np.concatenate([[0.0], np.cumsum(start_shifted)])
+    E  = np.concatenate([[0.0], np.cumsum(end_shifted)])
 
-    pts_primary   = np.column_stack([week_idx, C_primary])     # (W_total, 2)
-    pts_secondary = np.column_stack([week_idx, C_secondary])   # (W_total, 2)
-
-    # ── Step 3: Apply RDP_v ───────────────────────────────────────────────
-    bp_primary = []
-    bp_secondary = []
-
-    if selector in ('start_only', 'both'):
-        # With fixed_var='start_hour': primary='start' → 'start_only' means primary only
-        # With fixed_var='end_hour':   secondary='start' → 'start_only' means secondary only
-        # In both cases we need points that include 'start' in selector name.
-        # We apply RDP to whichever curve is associated with 'start' semantics.
-        #
-        # General approach: apply RDP to both curves when selector='both',
-        # or to the appropriate one when selector is 'start_only' or 'end_only'.
-        pass   # handled below
-
-    # Apply RDP based on fixed_var-aware selector mapping
     if fixed_var == 'start_hour':
-        # 'start_only' → fix only, 'end_only' → secondary only, 'both' → both
-        apply_primary   = selector in ('start_only', 'both')
-        apply_secondary = selector in ('end_only', 'both')
+        pts_primary, pts_secondary = np.column_stack([x, S]), np.column_stack([x, E])
     else:  # fixed_var == 'end_hour'
-        # 'end_only' → fix only, 'start_only' → secondary only, 'both' → both
-        apply_primary   = selector in ('end_only', 'both')
+        pts_primary, pts_secondary = np.column_stack([x, E]), np.column_stack([x, S])
+
+    # ── Step 3: Apply RDP_v; extract interior breakpoints ────────────────
+    # "Interior" = positions strictly between 0 and N (spec: ρ ∈ {1,...,N-1}).
+    def _interior(pts, eps):
+        simplified = rdp_v(pts, epsilon=eps)
+        return sorted(int(xi) for xi in simplified[:, 0] if 0 < xi < N)
+
+    if fixed_var == 'start_hour':
+        apply_primary   = selector in ('start_only', 'both')
+        apply_secondary = selector in ('end_only',   'both')
+    else:  # fixed_var == 'end_hour'
+        apply_primary   = selector in ('end_only',   'both')
         apply_secondary = selector in ('start_only', 'both')
 
-    if apply_primary:
-        simplified_primary = rdp_v(pts_primary, epsilon=eps_primary)
-        bp_primary = simplified_primary[:, 0].astype(int).tolist()
-        # print("before",bp_primary)
-        # bp_primary = [b for b in bp_primary if b != 0]  # strip art-row anchor (x=0)
-        # print("after",bp_primary)
+    bp_primary   = _interior(pts_primary,   eps_primary)   if apply_primary   else []
+    bp_secondary = _interior(pts_secondary, eps_secondary) if apply_secondary else []
 
-    if apply_secondary:
-        simplified_secondary = rdp_v(pts_secondary, epsilon=eps_secondary)
-        bp_secondary = simplified_secondary[:, 0].astype(int).tolist()
-        # bp_secondary = [b for b in bp_secondary if b != 0]  # strip art-row anchor (x=0)
-
-    # Store breakpoints under canonical names for compatibility with
-    # downstream code (draw_rdpv_band, etc.)
+    # Map back to canonical start / end names for meta and plotting
     if fixed_var == 'start_hour':
-        bp_start = bp_primary if apply_primary else []
-        bp_end   = bp_secondary if apply_secondary else []
-    else:  # fixed_var == 'end_hour'
-        bp_start = bp_secondary if apply_secondary else []
-        bp_end   = bp_primary if apply_primary else []
+        bp_start, bp_end = bp_primary, bp_secondary
+    else:
+        bp_start, bp_end = bp_secondary, bp_primary
 
     meta['breakpoints_start'] = bp_start
-    meta['breakpoints_end'] = bp_end
+    meta['breakpoints_end']   = bp_end
 
-    # ── Step 4: Merge breakpoints ────────────────────────────────────────
+    # ── Step 4: Calendar gap positions ───────────────────────────────────
+    # A gap at position n means w_n and w_{n-1} are not consecutive calendar
+    # weeks — demand was absent between them, so a segment boundary is forced.
+    peak_week_nums = peak_df['week_num'].to_numpy()
+    gap_positions = [
+        n for n in range(1, N)
+        if peak_week_nums[n] - peak_week_nums[n - 1] > 1
+    ]
+    meta['gap_positions'] = gap_positions
+
+    # ── Step 5: Union all interior breakpoints ────────────────────────────
     if selector == 'start_only':
-        all_bkpts = list(set(bp_start))
+        rdp_bkpts = set(bp_start)
     elif selector == 'end_only':
-        all_bkpts = list(set(bp_end))
+        rdp_bkpts = set(bp_end)
     else:
-        all_bkpts = list(set(bp_start) | set(bp_end))
-    all_bkpts = sorted(all_bkpts)
-
-    # ── Step 4b: Gap-break rule — enforce splits at no-peak weeks ────────
-    # RDP segments across no-peak weeks are meaningless (they span gaps
-    # in the peak time series).  This rule forces a split before and
-    # after each no-peak week, so each resulting segment contains only
-    # contiguous peak weeks (possibly separated by at most one no-peak
-    # week at a boundary).
-    # gap_weeks = np.where(~is_peak_week)[0]
-    # if len(gap_weeks) > 0:
-    #    gap_ends = gap_weeks + 1
-    #    # Clip to valid range
-    #    gap_ends = gap_ends[gap_ends < W_total]
-    # all_bkpts = sorted(set(all_bkpts) | set(gap_weeks.tolist()) | set(gap_ends.tolist()))
-
-    # ── Step 4c: Value-gap rule ───────────────────────────────────────────
-    sh = out['start_hour'].to_numpy(dtype=float)
-    if second_var == 'peak_duration':
-        sv = out['end_hour'].to_numpy(dtype=float) - sh
-    elif second_var == 'start_hour':
-        sv = sh
-    else:  # end_hour
-        sv = out['end_hour'].to_numpy(dtype=float)
-
-#    if hour_gap_threshold > 0:
-#        peak_idx = np.where(is_peak_week)[0]
-#        if len(peak_idx) >= 2:
-#            value_gap_bkpts = []
-#            for k in range(1, len(peak_idx)):
-#                prev_i = peak_idx[k - 1]
-#                curr_i = peak_idx[k]
-#                # Only check adjacent positions (no no-peak gap between them)
-#                if curr_i == prev_i + 1:
-#                    d_start = abs(sh[curr_i] - sh[prev_i])
-#                    d_second = abs(sv[curr_i] - sv[prev_i])
-#                    if d_start > hour_gap_threshold or d_second > hour_gap_threshold:
-#                        value_gap_bkpts.append(curr_i)
-#            if value_gap_bkpts:
-#                all_bkpts = sorted(set(all_bkpts) | set(value_gap_bkpts))
-
-    meta['hour_gap_threshold'] = hour_gap_threshold
-
-    # Store start/end breakpoint weeks separately for changepoint visualization 'if b < len(out)'
+        rdp_bkpts = set(bp_start) | set(bp_end)
+    all_bkpts = sorted(rdp_bkpts | set(gap_positions))
     meta['all_breakpoints'] = all_bkpts
-    meta['breakpoint_weeks_start'] = [float(out.loc[b, 'week_num']) for b in bp_start ]
-    meta['breakpoint_weeks_end'] = [float(out.loc[b, 'week_num']) for b in bp_end ]
-    meta['breakpoint_weeks'] = [float(out.loc[b, 'week_num']) for b in all_bkpts ]
 
-    # ── Step 5 & 6: Filter segments and label weeks ─────────────────────
-    boundaries = all_bkpts
+    # ── Step 6: Form right-closed segments (ρ_{k-1}, ρ_k] ───────────────
+    boundaries = [0] + all_bkpts + [N]
     segments = []
-    for i in range(len(boundaries) - 1):
-        seg_start = boundaries[i] + 1
-        seg_end = boundaries[i + 1] + 1
 
-        peak_count = int(is_peak_week[seg_start:seg_end].sum())
-        retained = peak_count >= segment_min_weeks
-        seg_id = i  # unique segment index within this facet
+    for k in range(len(boundaries) - 1):
+        r_start = boundaries[k]      # exclusive left boundary
+        r_end   = boundaries[k + 1]  # inclusive right boundary
 
-        # Get week_num range for this segment (for draw_rdpv_band)
-        if seg_start < seg_end:
-            seg_week_nums = out.loc[seg_start:seg_end, 'week_num'].values
-            start_week = float(seg_week_nums.min())
-            end_week = float(seg_week_nums.max())
-            # Store only peak-week positions so shading doesn't cover no-peak gaps
-            # peak_rows = out.loc[seg_start:seg_end - 1]
-            # peak_rows = peak_rows[peak_rows['is_peak'] == 1]
-            # peak_week_list = sorted(peak_rows['week_num'].tolist())
-        else:
-            start_week = end_week = float(out.loc[seg_start, 'week_num'])
-            peak_week_list = [start_week]
+        # Qualifying weeks in this segment: peak_df.iloc[r_start : r_end]
+        seg_peak = peak_df.iloc[r_start:r_end]
+        seg_len  = r_end - r_start   # ℓ_k
+        retained = seg_len >= segment_min_weeks
+
+        seg_week_nums = seg_peak['week_num'].tolist()
+        start_week = float(min(seg_week_nums)) if seg_week_nums else np.nan
+        end_week   = float(max(seg_week_nums)) if seg_week_nums else np.nan
 
         segments.append({
-            'start_obs': seg_start,
-            'end_obs': seg_end,
-            'peak_count': peak_count,
-            'retained': retained,
+            'start_obs':  r_start,
+            'end_obs':    r_end,
+            'peak_count': seg_len,
+            'retained':   retained,
             'start_week': start_week,
-            'end_week': end_week,
-            'segment_id': seg_id,
+            'end_week':   end_week,
+            'segment_id': k,
+            'peak_weeks': seg_week_nums,
         })
 
-        # Label each row in this segment
-        for row_idx in range(seg_start, seg_end):
+        # ── Step 7: Label rows ────────────────────────────────────────────
+        orig_pos_list = [peak_positions[i] for i in range(r_start, r_end)]
+        for orig_pos in orig_pos_list:
             if retained:
-                # Retained segment: all rows (peak and no-peak) get segment_id
-                out.loc[row_idx, 'segment_id'] = seg_id
-                # print("retained_row_idx", row_idx, seg_id)
-                # print(out.iloc[row_idx,:])
-                if is_peak_week[row_idx]:
-                    out.loc[row_idx, 'recurrent_band'] = True
-                    out.loc[row_idx, 'excluded_band'] = False
-                else:
-                    out.loc[row_idx, 'recurrent_band'] = False
-                    out.loc[row_idx, 'excluded_band'] = False
+                out.at[orig_pos, 'recurrent_band'] = True
+                out.at[orig_pos, 'segment_id']     = float(k)
             else:
-                # Excluded segment
-                if is_peak_week[row_idx]:
-                    out.loc[row_idx, 'recurrent_band'] = False
-                    out.loc[row_idx, 'excluded_band'] = True
-                else:
-                    out.loc[row_idx, 'recurrent_band'] = False
-                    out.loc[row_idx, 'excluded_band'] = False
+                out.at[orig_pos, 'excluded_band']  = True
+
+        # Assign segment_id to non-qualifying rows whose date falls within the
+        # retained segment's date range (needed by BPR segment_aggregation).
+        if retained and not seg_peak.empty:
+            first_date = seg_peak['date_dt'].min()
+            last_date  = seg_peak['date_dt'].max()
+            nonpeak_mask = (
+                (out['date_dt'] >= first_date) &
+                (out['date_dt'] <= last_date) &
+                (out['is_peak'] != 1)
+            )
+            out.loc[nonpeak_mask, 'segment_id'] = float(k)
 
     meta['segments'] = segments
 
-    # ── Step 7: Remove artificial first row ──────────────────────────────
-    out = out.iloc[1:].reset_index(drop=True)
+    # ── Step 8: Store breakpoint calendar-week numbers for plotting ───────
+    # Breakpoint ρ is after qualifying week n=ρ, i.e. peak_df.iloc[ρ-1].
+    meta['breakpoint_weeks_start'] = [float(peak_df.at[r - 1, 'week_num']) for r in bp_start]
+    meta['breakpoint_weeks_end']   = [float(peak_df.at[r - 1, 'week_num']) for r in bp_end]
+    meta['breakpoint_weeks_gap']   = [float(peak_df.at[r - 1, 'week_num']) for r in gap_positions]
+    meta['breakpoint_weeks']       = [float(peak_df.at[r - 1, 'week_num']) for r in all_bkpts]
 
     return out, meta
 
@@ -1013,32 +862,27 @@ def draw_rdpv_band(ax, meta):
         peak_weeks = seg.get('peak_weeks', [])
         if not peak_weeks:
             continue  # skip purely no-peak segments
-        color = 'green' if seg.get('retained', False) else 'grey'
-        # Shade each peak week individually (width = 1 week)
+        # Shade only retained segments (green). Non-retained weeks are left
+        # unshaded so the panels are not cluttered by grey vertical strips.
+        if not seg.get('retained', False):
+            continue
         for w in peak_weeks:
-            ax.axvspan(w - 0.5, w + 0.5, color=color, alpha=0.15)
+            ax.axvspan(w - 0.5, w + 0.5, color='green', alpha=0.15)
 
-    # Draw start_hour changepoints (blue dashed lines) (
-    # Because week_num is 1-based, so a changepoint at position b has week_num = b + 1, and drawing at week_num + 0.5 places the boundary line in the gap after that week and before the next one.
+    # Vertical changepoint / gap guide lines: start-hour CP (blue dashed),
+    # end-hour CP (orange dashed), calendar gap (grey dotted).
     has_start = False
     for bw in meta.get('breakpoint_weeks_start', []):
         ax.axvline(bw + 0.5, color='blue', linestyle='--', linewidth=0.8, alpha=0.6)
         has_start = True
-
-    # Draw end_hour changepoints (orange dashed lines)
     has_end = False
     for bw in meta.get('breakpoint_weeks_end', []):
         ax.axvline(bw + 0.5, color='darkorange', linestyle='--', linewidth=0.8, alpha=0.6)
         has_end = True
-
-    ## Draw all breakpoints as thin grey dotted lines (for reference)
-    # for bw in meta.get('breakpoint_weeks', meta.get('all_breakpoints', [])):
-    #    ax.axvline(bw - 0.5, color='grey', linestyle=':', linewidth=0.4, alpha=0.4)
-
-    # handles.append(Patch(facecolor='green', alpha=0.15, label='Recurrent segment'))
-    # handles.append(Patch(facecolor='grey', alpha=0.15, label='Excluded segment'))
-    # labels.append('Recurrent segment')
-    # labels.append('Excluded segment')
+    has_gap = False
+    for bw in meta.get('breakpoint_weeks_gap', []):
+        ax.axvline(bw + 0.5, color='grey', linestyle=':', linewidth=1.0, alpha=0.8)
+        has_gap = True
 
     if has_start:
         handles.append(Line2D([0], [0], color='blue', linestyle='--', linewidth=0.8, alpha=0.6, label='Start-hour CP'))
@@ -1046,6 +890,9 @@ def draw_rdpv_band(ax, meta):
     if has_end:
         handles.append(Line2D([0], [0], color='darkorange', linestyle='--', linewidth=0.8, alpha=0.6, label='End-hour CP'))
         labels.append('End-hour CP')
+    if has_gap:
+        handles.append(Line2D([0], [0], color='grey', linestyle=':', linewidth=1.0, alpha=0.8, label='Calendar gap'))
+        labels.append('Calendar gap')
 
     return handles, labels
 
@@ -1123,18 +970,18 @@ def plot_recurrent_facets(df_peaks, facet_meta, recurrent_col, excluded_col, dra
             handles = point_handles + band_handles
             labels = point_labels + band_labels
             if i == 0:
-                ax.set_title(per, fontsize=12, fontweight='bold')
+                ax.set_title(per, fontsize=18, fontweight='bold')
             if j == 0:
-                ax.set_ylabel("Time (hour)")
+                ax.set_ylabel("Time (hour)", fontsize=15)
                 ax.text(-0.1, 0.5, day, transform=ax.transAxes,
-                        rotation=90, va='center', ha='right', fontsize=11, fontweight='bold')
-            ax.set_xlabel('Week Number')
+                        rotation=90, va='center', ha='right', fontsize=17, fontweight='bold')
+            ax.set_xlabel('Week Number', fontsize=15)
             ax.yaxis.set_major_locator(ticker.MultipleLocator(1))
             ax.xaxis.set_major_locator(ticker.MaxNLocator(integer=True))
             if per == 'morning-peak':
-                ax.set_ylim(-0.5, 13)
+                ax.set_ylim(-0.5, 12.5)
             else:
-                ax.set_ylim(11, 24.5)
+                ax.set_ylim(11.5, 24.5)
             if i == 0 and j == 0 and handles:
                 ax.legend(handles, labels, loc='lower left', fontsize=11, frameon=True)
 
@@ -1150,8 +997,8 @@ def plot_recurrent_facets(df_peaks, facet_meta, recurrent_col, excluded_col, dra
 
     _label = _flat_labels.get(str(vds_id), str(vds_id))
 
-    title = f"Recurrent Peak Selection ({_label})"
-    fig.suptitle(title, fontsize=20, y=1.0)
+    title = f"Near-Recurrent Peak-Period Identification (VDS: {vds_id})"
+    fig.suptitle(title, fontsize=30, y=1.0)
     fig.tight_layout()
 
     if save_path:
@@ -1247,6 +1094,12 @@ def run_band_recurrent_pipeline(
     processed_path = output_dir / f'05_recurrent_peak_result/recurrent_days_labeled_{output_tag}.csv'
     df_excluded_all = pd.concat(all_excluded, ignore_index=True) if all_excluded else pd.DataFrame()
     df_processed_all = pd.concat(all_processed, ignore_index=True) if all_processed else pd.DataFrame()
+    # start_time/end_time are the raw Stage 1 strings; start_hour/end_hour (already
+    # computed) are what every downstream consumer (BPR fitting, plotting) reads.
+    # Dropped here since they duplicate start_hour/end_hour but can go stale (e.g.
+    # is_peak==-5 sentinel rows keep the raw string while the hour is overwritten).
+    df_excluded_all = df_excluded_all.drop(columns=['start_time', 'end_time'], errors='ignore')
+    df_processed_all = df_processed_all.drop(columns=['start_time', 'end_time'], errors='ignore')
     df_excluded_all.to_csv(excluded_path, index=False)
     df_processed_all.to_csv(processed_path, index=False)
 
@@ -1361,13 +1214,11 @@ def run_recurrent_peak_pipeline(config_rc, save_dir=None):
         eps_end_map   = normalize_period_mapping(params.get('epsilon_end_by_period', 1.5))
         min_weeks_map = config_rc.get('segment_min_weeks_by_period', {'morning-peak': 2, 'afternoon-peak': 2})
         selector_map  = normalize_period_mapping(params.get('selector_by_period', 'both'))
-        hour_gap_map  = params.get('hour_gap_threshold_by_period', {'morning-peak': 2.0, 'afternoon-peak': 2.0})
-        second_var_map = normalize_period_mapping(params.get('second_var_by_period', 'end_hour'))
         fixed_var_map = normalize_period_mapping(params.get('fixed_var_by_period', 'start_hour'))
         drop_multi = config_rc.get('drop_multiplecongestion_days', False)
         print(f'Running RDP_v recurrent detection: eps_start={dict(eps_start_map)}, eps_end={dict(eps_end_map)}, '
-              f'min_weeks={min_weeks_map}, selector={dict(selector_map)}, hour_gap={dict(hour_gap_map)}, '
-              f'second_var={dict(second_var_map)}, fixed_var={dict(fixed_var_map)}, drop_multi={drop_multi}')
+              f'min_weeks={min_weeks_map}, selector={dict(selector_map)}, '
+              f'fixed_var={dict(fixed_var_map)}, drop_multi={drop_multi}')
         return run_band_recurrent_pipeline(
             config_rc=config_rc,
             classify_facet_func=lambda facet_df, per: classify_facet_rdpv(
@@ -1377,8 +1228,6 @@ def run_recurrent_peak_pipeline(config_rc, save_dir=None):
                 epsilon_end=eps_end_map.get(per, 1.5),
                 segment_min_weeks=min_weeks_map.get(per, 2),
                 selector=selector_map.get(per, 'both'),
-                hour_gap_threshold=hour_gap_map.get(per, 2.0),
-                second_var=second_var_map.get(per, 'end_hour'),
                 fixed_var=fixed_var_map.get(per, 'start_hour'),
                 drop_multiplecongestion_days=drop_multi,
             ),

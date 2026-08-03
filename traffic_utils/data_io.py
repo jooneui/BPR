@@ -4,6 +4,10 @@ import os
 import pandas as pd
 import pickle
 
+# Write the per-station-day pickle cache under './12 python file/'.
+# Default True preserves existing notebook behaviour; set False for bulk runs.
+SAVE_DAILY_PICKLES = True
+
 
 _MEASURED_COLS = ['flow', 'density', 'occ']
 
@@ -81,16 +85,21 @@ def aggregate_rawdata_5min(rawdata, raw_timeframe, date, lane_num, VDS_num, conf
     traffic_within_day = rawdata
     plot_date = traffic_within_day['time_slot']
     
-    # Save the data
-    path_directory = f'./12 python file/{VDS_num}'
-    os.makedirs(path_directory, exist_ok=True)
+    # Save the data.
+    # Two pickles per station-day. The caller uses the returned values, so
+    # these are a cache only. On cloud-synced storage the volume of small
+    # writes saturates the sync daemon and raises TimeoutError partway through
+    # bulk runs, so SAVE_DAILY_PICKLES = False disables them.
+    if SAVE_DAILY_PICKLES:
+        path_directory = f'./12 python file/{VDS_num}'
+        os.makedirs(path_directory, exist_ok=True)
 
-    with open(f'./12 python file/{VDS_num}/traffic_within_day_{date}_raw{raw_timeframe}min_{lane_num}.p', 'wb') as file:
-        pickle.dump(traffic_within_day, file)
+        with open(f'./12 python file/{VDS_num}/traffic_within_day_{date}_raw{raw_timeframe}min_{lane_num}.p', 'wb') as file:
+            pickle.dump(traffic_within_day, file)
 
-    with open(f'./12 python file/{VDS_num}/plot_date_{date}_raw{raw_timeframe}min.p', 'wb') as file:    
-        pickle.dump(plot_date, file)
-    
+        with open(f'./12 python file/{VDS_num}/plot_date_{date}_raw{raw_timeframe}min.p', 'wb') as file:
+            pickle.dump(plot_date, file)
+
     return traffic_within_day, plot_date
 
 # =====================
