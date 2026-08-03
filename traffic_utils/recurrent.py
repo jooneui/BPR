@@ -59,10 +59,14 @@ def prepare_peak_table(config_rc, vds_id, all_periods):
     df_peaks = pd.merge(template, df_raw[merge_cols], on=['date_dt', 'period'], how='left')
     df_peaks['dayofweek'] = df_peaks['date_dt'].dt.strftime('%a')
     
-    week_bucket = df_peaks['date_dt'] - pd.to_timedelta(df_peaks['date_dt'].dt.dayofweek, unit='D')                                                                                                         
-    unique_weeks = sorted(week_bucket.dropna().unique())                                                                                                                                                    
-    week_map = {w: i + 1 for i, w in enumerate(unique_weeks)}                                                                                                                                               
-    df_peaks['week_num'] = week_bucket.map(week_map)         
+    # Calendar week index, not a ranking of the weeks that happen to appear in
+    # the data. The gap rule of Section 3.3 asks whether two qualifying weeks
+    # are calendar-consecutive (w_{j+1} - w_j > 1), so a week that is entirely
+    # absent from the record has to leave a hole in the numbering. Enumerating
+    # only the weeks present would close that hole and let a segment span a
+    # data outage.
+    week_bucket = df_peaks['date_dt'] - pd.to_timedelta(df_peaks['date_dt'].dt.dayofweek, unit='D')
+    df_peaks['week_num'] = ((week_bucket - week_bucket.min()).dt.days // 7) + 1
 
     df_peaks['is_peak'] = np.where(df_peaks['start_hour'].isna() | df_peaks['end_hour'].isna(), -5, 1)
 

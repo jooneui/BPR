@@ -416,9 +416,14 @@ def rdp_v_segmentation_peak(
     
     df = df.copy()
 
-    # 1) Prepend artificial free-flow row as RDP_v anchor
+    # 1) Prepend one row to supply the d_0 vertex of Eq. (1). With art_speed = 0
+    #    the cumulative series is exactly d_0 = 0, d_k = sum_{i<=k} v_i * dt.
+    #    (Any other value would only shift every point by the same constant,
+    #    which cancels out of every chord distance and leaves the vertical-RDP
+    #    breakpoints unchanged -- but 0 is the one that matches the paper.)
+    #    The row is dropped in step 4 before any classification reads it.
     cs_name = f"cumsum_{column}"
-    art_speed = offpeak_ff_speed_threshold
+    art_speed = 0.0
     art_row = pd.Series({column: art_speed}, name=-1)
     df_aug = pd.concat([art_row.to_frame().T, df], ignore_index=True)
     df_aug[cs_name] = df_aug[column].cumsum() * aggregate_timeframe / 60.0

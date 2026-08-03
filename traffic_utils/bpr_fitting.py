@@ -139,7 +139,9 @@ def merge_segment_id(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
         df_labeled['date'] = df_labeled['date'].astype(str).str.replace(r'\.0$', '', regex=True).str.zfill(6)
 
     # Only keep rows with segment_id (retained segments) and needed columns
-    seg_cols = [c for c in ['date', 'period', 'dayofweek', 'week_num', 'vds_id', 'segment_id'] if c in df_labeled.columns]
+    seg_cols = [c for c in ['date', 'period', 'dayofweek', 'week_num', 'vds_id',
+                            'segment_id', 'start_hour', 'end_hour']
+                if c in df_labeled.columns]
     df_seg = df_labeled[seg_cols].dropna(subset=['segment_id']).drop_duplicates()
 
     if df_seg.empty:
@@ -152,19 +154,46 @@ def merge_segment_id(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
     # every key stringifies to e.g. '100105.0', which then matches nothing.
     work['date'] = (work['date'].astype(str)
                     .str.replace(r'\.0$', '', regex=True).str.zfill(6))
+
+    # Match the congested period itself, not just the day it fell on. A day can
+    # carry more than one congested period in the same window; Section 3.1 keeps
+    # only the longest and recurrent._dedup_multiple_peaks drops the rest, so a
+    # date-only key would hand the segment_id back to the ones it discarded and
+    # pull them into the Eq. (9) averages. Minutes from midnight is an exact
+    # integer key on both sides; the fractional hours are not.
+    time_keys = []
+    if ({'start_hour', 'end_hour'}.issubset(df_seg.columns)
+            and {'start_time', 'end_time'}.issubset(work.columns)):
+        df_seg = df_seg.copy()
+        df_seg['_start_min'] = (df_seg['start_hour'] * 60).round().astype('Int64')
+        df_seg['_end_min']   = (df_seg['end_hour'] * 60).round().astype('Int64')
+        work['_start_min'] = (work['start_time'].apply(time_to_fractional_hour)
+                              * 60).round().astype('Int64')
+        work['_end_min']   = (work['end_time'].apply(time_to_fractional_hour)
+                              * 60).round().astype('Int64')
+        # entireday / hour units store start_time = '-', so the keys parse to NA
+        # and would match nothing. Fall back to the date-only join there.
+        if work['_start_min'].notna().any():
+            time_keys = ['_start_min', '_end_min']
+        else:
+            work = work.drop(columns=['_start_min', '_end_min'])
+
     merge_on = [c for c in ['date', 'period', 'dayofweek'] if c in work.columns and c in df_seg.columns]
     if not merge_on:
         print('[merge_segment_id] No matching merge columns, skipping merge')
         return df
+    merge_on = merge_on + time_keys
 
     # Drop existing segment_id if it exists (from a stale merge)
     if 'segment_id' in work.columns:
         work = work.drop(columns=['segment_id'])
 
     work = work.merge(df_seg[['segment_id'] + merge_on], on=merge_on, how='left')
+    work = work.drop(columns=[c for c in ('_start_min', '_end_min') if c in work.columns])
 
     n_with_seg = work['segment_id'].notna().sum()
-    print(f'[merge_segment_id] Merged segment_id: {n_with_seg}/{len(work)} rows have segment_id')
+    print(f'[merge_segment_id] Merged segment_id: {n_with_seg}/{len(work)} rows have segment_id'
+          f" (key: {'+'.join(merge_on)})")
     return work
 
 
