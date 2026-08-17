@@ -51,17 +51,31 @@ def time_to_fractional_hour(t_str, default_val=np.nan):
         return default_val
 
 
+# Temporal scales that are only a Stage 4 re-filter of another scale's Stage 1
+# output, so they read that scale's CSV instead of one of their own.
+# 'entireday_rec' = the entireday daily aggregation, restricted to the dates the
+# recurrent classification retained (see _apply_recurrent_day_inclusion).
+STAGE1_SCALE_ALIAS = {'entireday_rec': 'entireday'}
+
+
+def stage1_temporal_scale(cfg: dict) -> str:
+    """Return the temporal_scale whose Stage 1 CSV backs this cfg's scale."""
+    scale = cfg.get('temporal_scale')
+    return STAGE1_SCALE_ALIAS.get(scale, scale)
+
+
 def build_file_path(cfg: dict) -> str:
     print(cfg['spatial_scope'])
+    scale = stage1_temporal_scale(cfg)
     if cfg['spatial_scope'] == 'multi_vds':
-        file_path = f"./04_peak_period_result/c_daily_traffic_division_{cfg['spatial_scope']}_{cfg['VDS_list']}_{cfg['temporal_scale']}_{cfg['aggregate_timeframe']}_{cfg['method']}_{cfg['congest_method']}.csv"
+        file_path = f"./04_peak_period_result/c_daily_traffic_division_{cfg['spatial_scope']}_{cfg['VDS_list']}_{scale}_{cfg['aggregate_timeframe']}_{cfg['method']}_{cfg['congest_method']}.csv"
         print(file_path)
     elif cfg['spatial_scope'] == 'network':
         file_path = (f"./04_peak_period_result/c_daily_traffic_division_network_{cfg['VDS_num']}"
-                     f"_{cfg['temporal_scale']}_{cfg['aggregate_timeframe']}"
+                     f"_{scale}_{cfg['aggregate_timeframe']}"
                      f"_{cfg['method']}_{cfg['congest_method']}.csv")
     else:
-        file_path = f"./04_peak_period_result/c_daily_traffic_division_{cfg['spatial_scope']}_{cfg['VDS_num']}_{cfg['temporal_scale']}_{cfg['aggregate_timeframe']}_{cfg['method']}_{cfg['congest_method']}.csv"
+        file_path = f"./04_peak_period_result/c_daily_traffic_division_{cfg['spatial_scope']}_{cfg['VDS_num']}_{scale}_{cfg['aggregate_timeframe']}_{cfg['method']}_{cfg['congest_method']}.csv"
     return file_path
 
 
@@ -110,6 +124,20 @@ def build_labeled_recurrent_days_path(cfg: dict) -> str:
     """Return the path to the labeled recurrent days CSV for the current cfg."""
     tag = cfg.get('recurrent_output_tag') or build_default_recurrent_output_tag_from_bpr(cfg)
     return f"./05_recurrent_peak_result/recurrent_days_labeled_{tag}.csv"
+
+
+def build_bpr_input_path(cfg: dict, vds_id, period: str) -> str:
+    """Return the save path for a per-VDS/period BPR input CSV.
+
+    Saved under 06_BPR_input/, named with the recurrent-classification
+    parameter tag (same tag used for the labeled/excluded recurrent CSVs)
+    so different parameter runs don't overwrite each other, e.g.:
+    06_BPR_input/BPR_input_1205175_afternoon-peak__RDP_v_morning_es0.15_ee0.15_min3_b_sh_afternoon_es0.19_ee0.19_min3_b_sh.csv
+    """
+    tag = cfg.get('recurrent_output_tag') or build_default_recurrent_output_tag_from_bpr(cfg)
+    out_dir = "./06_BPR_input"
+    os.makedirs(out_dir, exist_ok=True)
+    return os.path.join(out_dir, f"BPR_input_{vds_id}_{period}__{tag}.csv")
 
 
 def merge_segment_id(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
@@ -340,7 +368,11 @@ def aggregate_segment_level_bpr(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
                     'dayofweek': day,
                     'segment_id': int(segment_id),
                     'n_days': int(len(seg)),
-                    'date': seg['end_date'].iloc[0] if 'end_date' in seg.columns else seg['date'].iloc[-1],
+                    # All member days of the segment, in chronological order.
+                    # start_time/end_time below are aligned element-wise with this list.
+                    # Joined on ';' not ',' so spreadsheets don't read the digit
+                    # runs as one thousands-separated number.
+                    'date': ';'.join(seg['date'].astype(str)),
                     'duration': float(seg['duration'].mean()) if seg['duration'].notna().any() else np.nan,
                     'traveltimes': avg_tt,
                     'free_traveltime': free_tt,
@@ -351,12 +383,81 @@ def aggregate_segment_level_bpr(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
                     'ln_totaldemand': np.log(avg_totaldemand) if pd.notna(avg_totaldemand) and avg_totaldemand > 0 else np.nan,
                     'ln_avg_flow': np.log(avg_avg_flow) if pd.notna(avg_avg_flow) and avg_avg_flow > 0 else np.nan,
                     'ln_t_tau': np.log(tau_ratio) if pd.notna(tau_ratio) and tau_ratio > 0 else np.nan,
-                    'start_time': seg['start_time'].iloc[-1] if has_time else np.nan,
-                    'end_time': seg['end_time'].iloc[-1] if has_time else np.nan,
+                    'start_time': ';'.join(seg['start_time'].astype(str)) if has_time else np.nan,
+                    'end_time': ';'.join(seg['end_time'].astype(str)) if has_time else np.nan,
+                    # segment-level averages (kept scalar)
                     'start_hour': float(seg['start_hour'].mean()) if has_time else np.nan,
                     'end_hour': float(seg['end_hour'].mean()) if has_time else np.nan,
                 })
     return pd.DataFrame(rows)
+
+
+def _recurrent_dates_by_period(cfg: dict) -> dict:
+    """Return {period: set(date '%y%m%d')} of the dates this VDS's recurrent
+    classification retained (recurrent_band == True in the labeled CSV)."""
+    labeled_file = build_labeled_recurrent_days_path(cfg)
+    if not os.path.exists(labeled_file):
+        raise FileNotFoundError(
+            f"Labeled recurrent file not found: {labeled_file}. "
+            "Run Stage 3 (recurrent detection) under temporal_scale='speedbasedpeak' first."
+        )
+
+    df_lab = pd.read_csv(labeled_file)
+    if 'vds_id' in df_lab.columns:
+        df_lab = df_lab[df_lab['vds_id'].astype(str) == str(cfg['VDS_num'])]
+    if 'recurrent_band' in df_lab.columns:
+        df_lab = df_lab[df_lab['recurrent_band'] == True]
+
+    if 'date' not in df_lab.columns or df_lab['date'].isna().all():
+        df_lab = df_lab.copy()
+        df_lab['date'] = pd.to_datetime(df_lab['date_dt'], errors='coerce').dt.strftime('%y%m%d')
+    df_lab['date'] = (df_lab['date'].astype(str)
+                      .str.replace(r'\.0$', '', regex=True).str.zfill(6))
+
+    return {per: set(g['date']) for per, g in df_lab.groupby('period')}
+
+
+def _apply_recurrent_day_inclusion(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
+    """Keep only the dates the recurrent classification retained.
+
+    Unlike _apply_nonrecurrent_exclusion (which *drops* flagged days), this is an
+    inclusive filter: a date survives only if it is near-recurrent. Used by the
+    'entireday_rec' scale, whose rows are one-per-date with period='off-peak',
+    so the AM/PM labels have to be collapsed to a date set first.
+
+    cfg['entireday_rec_period_rule'] picks how:
+      'all_available' (default) — recurrent in every period this VDS retained;
+                                  for a VDS with only one retained period this is
+                                  just that period, so single-peak stations are
+                                  not wiped out by an empty AM-and-PM intersection
+      'all'                     — strict intersection of morning and afternoon
+      'any'                     — union of both periods
+      'morning-peak' / 'afternoon-peak' — that one period only
+    """
+    by_period = _recurrent_dates_by_period(cfg)
+    rule = cfg.get('entireday_rec_period_rule', 'all_available')
+
+    if not by_period:
+        keep = set()
+    elif rule == 'any':
+        keep = set().union(*by_period.values())
+    elif rule == 'all':
+        keep = set.intersection(*(by_period.get(p, set())
+                                  for p in ('morning-peak', 'afternoon-peak')))
+    elif rule == 'all_available':
+        keep = set.intersection(*by_period.values())
+    elif rule in by_period:
+        keep = by_period[rule]
+    else:
+        print(f"[entireday_rec] VDS {cfg['VDS_num']}: no '{rule}' rows retained; dropping all.")
+        keep = set()
+
+    initial_len = len(df)
+    result = df[df['date'].astype(str).isin(keep)]
+    print(f"[entireday_rec] VDS {cfg['VDS_num']}: rule='{rule}' "
+          f"({', '.join(f'{p}={len(d)}' for p, d in sorted(by_period.items())) or 'no periods'}) "
+          f"-> {len(keep)} recurrent dates, kept {len(result)}/{initial_len} rows")
+    return result
 
 
 def _apply_nonrecurrent_exclusion(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
@@ -478,12 +579,22 @@ def apply_filters(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
     #         elif cfg['temporal_scale'] == 'speedbasedpeak':
     #             df = df[~((df['date'].astype(str).isin(bad_dates)) & (df['period'] == period))]
 
-    if cfg.get('drop_nonrecurrent_days'):
+    # 'entireday_rec' keeps only the recurrent dates (inclusive filter) instead of
+    # dropping the flagged ones, so it replaces the exclusion pass rather than
+    # running after it — the two would otherwise filter the same dates twice.
+    if cfg.get('temporal_scale') == 'entireday_rec':
+        df = _apply_recurrent_day_inclusion(df, cfg)
+    elif cfg.get('drop_nonrecurrent_days'):
         df = _apply_nonrecurrent_exclusion(df, cfg)
 
     # Merge segment_id from recurrent detection output (keeps adjacent retained
-    # segments separate instead of merging them into one continuous group)
-    if cfg.get('recurrent_method') == 'RDP_v' or cfg.get('recurrent_output_tag', '').startswith('RDP_v'):
+    # segments separate instead of merging them into one continuous group).
+    # Skipped for entireday_rec: its rows are period='off-peak' whole days, which
+    # can never match the labeled file's morning-/afternoon-peak keys, so the
+    # merge would only add an all-NaN column.
+    if (cfg.get('temporal_scale') != 'entireday_rec'
+            and (cfg.get('recurrent_method') == 'RDP_v'
+                 or cfg.get('recurrent_output_tag', '').startswith('RDP_v'))):
         df = merge_segment_id(df, cfg)
 
     df_f = to_categorical_day(df.copy())

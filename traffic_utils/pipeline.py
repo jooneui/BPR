@@ -120,7 +120,7 @@ def run_single_vds(cfg, base_path: Path, vds_num: str, timeframe_min: int, c_lan
                 print(f"[threshold check] VDS={vds_num}  date={date}  "
                       f"threshold={thre}  mean_speed={traffic['speed'].mean():.1f}")
 
-            if cfg['temporal_scale'] == 'entireday':
+            if cfg['temporal_scale'] in ('entireday', 'entireday_rec'):
                 traffic[['segment','division']] = 0
                 peaks = []
             elif cfg['temporal_scale'] == 'speedbasedpeak':
@@ -172,10 +172,10 @@ def run_single_vds(cfg, base_path: Path, vds_num: str, timeframe_min: int, c_lan
             continue
         traffic, _date = aggregate_rawdata_5min(raw, timeframe_min, date, lane_num, vds_num)
 
-        if cfg['temporal_scale'] == 'entireday':
+        if cfg['temporal_scale'] in ('entireday', 'entireday_rec'):
             traffic[['segment','division']]=0
             peaks = []
-            
+
         elif cfg['temporal_scale'] == 'speedbasedpeak':
             traffic, peaks = apply_peak_detection(traffic, date, cfg)
 
@@ -596,14 +596,20 @@ def _run_pipeline_core(cfg: dict, stages: list):
             try:
                 cfg_bpr_plot = copy.deepcopy(cfg_bpr)
                 cfg_bpr_plot['save_dir'] = cfg_bpr.get('bpr_save_dir', cfg_bpr.get('save_dir', '.'))
-                if cfg.get('temporal_scale') == 'entireday':
-                    _override = cfg.get('bpr_xlim_override', {})
-                    _xlim = [_override.get(str(v), None) for v in cfg.get('VDS_list', [])] or [None]
+                _override = cfg.get('bpr_xlim_override', {})
+                if cfg.get('temporal_scale') in ('entireday', 'entireday_rec') and _override:
+                    # Per-panel list, indexed by the grid's panel counter. Only
+                    # safe when it covers every panel: corridor_groups can name
+                    # more VDS than VDS_list, and a short list index-errors out
+                    # of the whole plotting block.
+                    _grid_vds = [v for _, ids in (cfg.get('corridor_groups') or {}).items() for v in ids] \
+                        or cfg.get('VDS_list', [])
+                    _xlim = [_override.get(str(v), None) for v in _grid_vds] or [None]
                 else:
                     _xlim = [None]  # data-driven per panel
                 if cfg.get('bpr_ylim') is not None:
                     _ylim = cfg['bpr_ylim']
-                elif cfg.get('temporal_scale') == 'entireday':
+                elif cfg.get('temporal_scale') in ('entireday', 'entireday_rec'):
                     _ylim = [-4, 0]
                 elif cfg.get('spatial_scope') == 'network':
                     _ylim = [-6, 1]

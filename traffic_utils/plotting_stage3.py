@@ -17,7 +17,8 @@ from matplotlib.ticker import AutoMinorLocator
 
 from .bpr_fitting import (fit_bpr_ols_stats, prepare_bpr_dataframe,
                           LINEAR_REGISTRY_BPR,
-                          build_default_recurrent_output_tag_from_bpr)
+                          build_default_recurrent_output_tag_from_bpr,
+                          build_bpr_input_path)
 from .plotting_stage2 import _flatten_vds_labels
 
 
@@ -40,6 +41,7 @@ _BPR_UNIT_NAME = {
     'peak':           'peak-hour unit',
     'speedbasedpeak': 'near-recurrent peak-period unit',
     'entireday':      'entire-day unit',
+    'entireday_rec':  'entire-day unit (near-recurrent days only)',
 }
 
 # Axis limits for the paper figures: y is fixed, and x is data-driven on the
@@ -211,7 +213,7 @@ def plot_bpr_section_grid(
 
                 for per in periods_for_table:
                     dfg = df_use[df_use['period'] == per].copy()
-                    dfg.to_csv(f"BPR_input_{vds_id}_{per}.csv")
+                    dfg.to_csv(build_bpr_input_path(cfg_i, vds_id, per))
                     stats = fit_bpr_ols_stats(dfg, xcol, ycol)
                     peak_label = ('AM' if per == 'morning-peak' else
                                   'PM' if per == 'afternoon-peak' else
@@ -302,7 +304,7 @@ def plot_bpr_section_grid(
 
                 for per in periods_for_table:
                     dfg = df_use[df_use['period'] == per].copy()
-                    dfg.to_csv(f"BPR_input_{vds_id}_{per}.csv")
+                    dfg.to_csv(build_bpr_input_path(cfg_i, vds_id, per))
                     stats = fit_bpr_ols_stats(dfg, xcol, ycol)
                     peak_label = ('AM' if per == 'morning-peak' else
                                   'PM' if per == 'afternoon-peak' else
@@ -527,10 +529,14 @@ def plot_bpr_single_panel(
             # Cap the right edge so every panel ends at the same demand, while
             # the left edge still follows the data.
             right = cfg.get('bpr_xlim_right', BPR_XLIM_RIGHT_DEFAULT)
+            lo = math.floor(x_min / 0.3) * 0.3 - pad
             hi = math.ceil(x_max / 0.3) * 0.3 + pad
-            if right is not None:
+            # Only honour the shared cap when it actually sits right of the data.
+            # Units with larger demand (entireday: ln N ~ 11-12) would otherwise
+            # get an inverted axis and an empty-looking panel.
+            if right is not None and float(right) > lo:
                 hi = float(right)
-            xlim = [math.floor(x_min / 0.3) * 0.3 - pad, hi]
+            xlim = [lo, hi]
     if ylim is None:
         ylim = cfg.get('bpr_ylim', BPR_YLIM_DEFAULT)
     if xlim is not None:

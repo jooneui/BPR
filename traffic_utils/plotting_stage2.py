@@ -17,6 +17,7 @@ from matplotlib.lines import Line2D
 import numpy as np
 import pandas as pd
 import seaborn as sns
+from scipy.stats import gaussian_kde
 from .bpr_fitting import time_to_fractional_hour
 
 DAY_ORDER = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -565,5 +566,285 @@ def plot_fd_all_in_one_png(
 
         print("Saved:", out_png)
     return out_png, skip_map
+
+
+# Reuses the AM/PM colors from the BPR grid (plotting_stage3.py) so the two
+# figure families read as the same visual language.
+_RECUR_PERIOD_COLORS = {'morning-peak': '#1f77b4', 'afternoon-peak': '#ff7f0e'}
+_RECUR_SERIES_SPEC = [
+    # (period, time column, legend label, linestyle)
+    ('morning-peak',   'start_hour', 'AM start', '-'),
+    ('morning-peak',   'end_hour',   'AM end',   '--'),
+    ('afternoon-peak', 'start_hour', 'PM start', '-'),
+    ('afternoon-peak', 'end_hour',   'PM end',   '--'),
+]
+
+
+def _kde_curve(values, xgrid):
+    """Gaussian KDE of ``values`` evaluated on ``xgrid``; None if too few/degenerate points."""
+    values = np.asarray(values, dtype=float)
+    values = values[np.isfinite(values)]
+    if len(values) < 2 or np.ptp(values) == 0:
+        return None
+    return gaussian_kde(values)(xgrid)
+
+
+def plot_recurrent_time_distribution_grid(
+    cfg,
+    labeled_csv_path=None,
+    ncols=3,
+    xlim=None,
+    out_name=None,
+    save_dir=None,
+    font_add=2,
+    dpi=200,
+):
+    """
+    One panel per VDS in ``cfg['VDS_list']`` order (flat grid, ``ncols`` wide —
+    ignores corridor_groups, matching ``plot_bpr_grid_vdslist``'s layout so this
+    figure lines up panel-for-panel with the BPR grid).
+
+    Each panel overlays up to 4 KDE density curves of the *retained*
+    (``recurrent_band == True``) weekly peak-period clock times for that
+    station: AM start (blue, solid), AM end (blue, dashed), PM start
+    (orange, solid), PM end (orange, dashed) — with a rug of the underlying
+    weekly observations under each curve, since several stations only have
+    a few dozen retained weeks.
+
+    Reads the Stage 3 labeled CSV
+    (``05_recurrent_peak_result/recurrent_days_labeled_<tag>.csv``) unless
+    ``labeled_csv_path`` is given explicitly.
+    """
+    from .recurrent import build_recurrent_output_tag
+
+    if labeled_csv_path is None:
+        tag = build_recurrent_output_tag(cfg)
+        labeled_csv_path = os.path.join(
+            cfg.get('path', '.'), '05_recurrent_peak_result',
+            f'recurrent_days_labeled_{tag}.csv'
+        )
+
+    df = pd.read_csv(labeled_csv_path)
+    df['vds_id'] = df['vds_id'].astype(str)
+    # recurrent_band == True marks the retained/near-recurrent weeks (the
+    # rows with real start_hour/end_hour); every other row is NaN-padded
+    # calendar filler from the weekly grid construction in recurrent.py.
+    df = df[df['recurrent_band'] == True].copy()
+
+    vds_list = [str(v) for v in cfg.get('VDS_list', [])]
+    vds_label_map = _vds_label_dict(cfg)
+    n = len(vds_list)
+    nrows = max(1, math.ceil(n / ncols))
+
+    # Shared x-range across every panel so clock times are directly
+    # comparable station-to-station.
+    if xlim is None:
+        all_vals = pd.concat([df['start_hour'], df['end_hour']]).dropna()
+        if not all_vals.empty:
+            xlim = [max(0, math.floor(all_vals.min()) - 1), min(24, math.ceil(all_vals.max()) + 1)]
+        else:
+            xlim = [0, 24]
+    xgrid = np.linspace(xlim[0], xlim[1], 400)
+
+    fig, axs = plt.subplots(nrows, ncols, figsize=(6 * ncols, 4.2 * nrows),
+                             constrained_layout=True, squeeze=False)
+    for ax in axs.ravel():
+        ax.set_visible(False)
+
+    legend_handles, legend_labels = [], []
+
+    for idx, vds_id in enumerate(vds_list):
+        ax = axs[idx // ncols, idx % ncols]
+        ax.set_visible(True)
+        ax.minorticks_on()
+        ax.grid(True, which='major', linestyle='--', linewidth=1.0, alpha=0.35)
+        ax.grid(True, which='minor', linestyle='-', linewidth=0.6, alpha=0.15)
+
+        dfv = df[df['vds_id'] == vds_id]
+
+        # Pass 1: compute all curves so the rug/ylim can be sized relative
+        # to this panel's own density scale (panels vary widely in n).
+        curves = []
+        for period, col, label, ls in _RECUR_SERIES_SPEC:
+            vals = dfv.loc[dfv['period'] == period, col].dropna()
+            if vals.empty:
+                continue
+            curves.append((period, label, ls, vals, _kde_curve(vals, xgrid)))
+        max_density = max([c[4].max() for c in curves if c[4] is not None], default=0.1)
+        rug_h = 0.05 * max_density
+
+        n_by_label = {}
+        for period, label, ls, vals, density in curves:
+            color = _RECUR_PERIOD_COLORS[period]
+            if density is not None:
+                ax.fill_between(xgrid, 0, density, color=color, alpha=0.08)
+                ln, = ax.plot(xgrid, density, color=color, linestyle=ls, linewidth=2)
+            else:
+                ln, = ax.plot([], [], color=color, linestyle=ls, linewidth=2)
+            ax.plot(vals, np.full(len(vals), -rug_h), marker='|', linestyle='none',
+                    color=color, alpha=0.6, markersize=8, markeredgewidth=1.2)
+            n_by_label[label] = len(vals)
+            if label not in legend_labels:
+                legend_handles.append(ln)
+                legend_labels.append(label)
+
+        ax.set_xlim(xlim)
+        ax.set_ylim(-rug_h * 1.6, max_density * 1.15)
+        if n_by_label:
+            n_text = '  '.join(f'{lab}: n={cnt}' for lab, cnt in n_by_label.items())
+            ax.text(0.98, 0.97, n_text, transform=ax.transAxes, ha='right', va='top',
+                    fontsize=8 + font_add)
+
+        tag = vds_label_map.get(vds_id, vds_id)
+        ax.set_title(tag, fontsize=14 + font_add, pad=6)
+
+    fig.suptitle('Recurrent peak-period start/end time distributions', fontsize=18 + font_add, y=1.04)
+    fig.supxlabel('Clock time (h)', fontsize=14 + font_add)
+    fig.supylabel('Density', fontsize=14 + font_add)
+    fig.legend(legend_handles, legend_labels, loc='upper center',
+               bbox_to_anchor=(0.5, 1.08), ncol=4, fontsize=12 + font_add, frameon=False)
+
+    save_dir = save_dir or cfg.get('rc_save_dir', cfg.get('save_dir', './02 fig/17 recurrent_checks'))
+    os.makedirs(save_dir, exist_ok=True)
+    out_name = out_name or 'recurrent_time_distribution_grid'
+    out_path = os.path.join(save_dir, f'{out_name}.png')
+    fig.savefig(out_path, dpi=dpi, bbox_inches='tight')
+    plt.show()
+    print('Saved:', out_path)
+    return out_path
+
+
+# Day-of-week panel grouping for plot_recurrent_time_distribution_by_dow:
+# one panel per weekday, Sat+Sun pooled into a single 'Weekend' panel since
+# weekend recurrent counts are usually too sparse (~5% of a weekday) to show
+# their own KDE. Fixed at 6 groups -> 2x3 grid.
+_DOW_PANEL_GROUPS = [
+    ('Mon', ['Mon']), ('Tue', ['Tue']), ('Wed', ['Wed']),
+    ('Thu', ['Thu']), ('Fri', ['Fri']), ('Weekend', ['Sat', 'Sun']),
+]
+
+
+def plot_recurrent_time_distribution_by_dow(
+    cfg,
+    vds_num,
+    labeled_csv_path=None,
+    xlim=None,
+    out_name=None,
+    save_dir=None,
+    font_add=2,
+    dpi=200,
+):
+    """
+    Single-VDS version of ``plot_recurrent_time_distribution_grid``: instead
+    of one panel per station (all days of week pooled together), this plots
+    one station across a fixed 2x3 grid of day-of-week panels — Mon, Tue,
+    Wed, Thu, Fri, and a pooled Weekend (Sat+Sun) panel — so you can see how
+    the AM/PM start/end time distributions differ day to day for that
+    station.
+
+    Same KDE + rug overlay per panel as the multi-station grid: AM start
+    (blue, solid), AM end (blue, dashed), PM start (orange, solid), PM end
+    (orange, dashed).
+
+    Parameters
+    ----------
+    vds_num : the single VDS id to plot (e.g. from cfg['VDS_list'] or typed
+        directly). Define this as a variable before calling, e.g.:
+            RC_VDS_num = MASTER_CONFIG['VDS_list'][0]
+            plot_recurrent_time_distribution_by_dow(cfg=MASTER_CONFIG, vds_num=RC_VDS_num)
+
+    Reads the Stage 3 labeled CSV
+    (``05_recurrent_peak_result/recurrent_days_labeled_<tag>.csv``) unless
+    ``labeled_csv_path`` is given explicitly.
+    """
+    from .recurrent import build_recurrent_output_tag
+
+    vds_num = str(vds_num)
+
+    if labeled_csv_path is None:
+        tag = build_recurrent_output_tag(cfg)
+        labeled_csv_path = os.path.join(
+            cfg.get('path', '.'), '05_recurrent_peak_result',
+            f'recurrent_days_labeled_{tag}.csv'
+        )
+
+    df = pd.read_csv(labeled_csv_path)
+    df['vds_id'] = df['vds_id'].astype(str)
+    df = df[(df['vds_id'] == vds_num) & (df['recurrent_band'] == True)].copy()
+
+    vds_label_map = _vds_label_dict(cfg)
+    station_label = vds_label_map.get(vds_num, vds_num)
+
+    nrows, ncols = 2, 3
+
+    if xlim is None:
+        all_vals = pd.concat([df['start_hour'], df['end_hour']]).dropna()
+        if not all_vals.empty:
+            xlim = [max(0, math.floor(all_vals.min()) - 1), min(24, math.ceil(all_vals.max()) + 1)]
+        else:
+            xlim = [0, 24]
+    xgrid = np.linspace(xlim[0], xlim[1], 400)
+
+    fig, axs = plt.subplots(nrows, ncols, figsize=(6 * ncols, 4.2 * nrows),
+                             constrained_layout=True, squeeze=False)
+
+    legend_handles, legend_labels = [], []
+
+    for idx, (dow_label, dow_values) in enumerate(_DOW_PANEL_GROUPS):
+        ax = axs[idx // ncols, idx % ncols]
+        ax.minorticks_on()
+        ax.grid(True, which='major', linestyle='--', linewidth=1.0, alpha=0.35)
+        ax.grid(True, which='minor', linestyle='-', linewidth=0.6, alpha=0.15)
+
+        dfv = df[df['dayofweek'].isin(dow_values)]
+
+        curves = []
+        for period, col, label, ls in _RECUR_SERIES_SPEC:
+            vals = dfv.loc[dfv['period'] == period, col].dropna()
+            if vals.empty:
+                continue
+            curves.append((period, label, ls, vals, _kde_curve(vals, xgrid)))
+        max_density = max([c[4].max() for c in curves if c[4] is not None], default=0.1)
+        rug_h = 0.05 * max_density
+
+        n_by_label = {}
+        for period, label, ls, vals, density in curves:
+            color = _RECUR_PERIOD_COLORS[period]
+            if density is not None:
+                ax.fill_between(xgrid, 0, density, color=color, alpha=0.08)
+                ln, = ax.plot(xgrid, density, color=color, linestyle=ls, linewidth=2)
+            else:
+                ln, = ax.plot([], [], color=color, linestyle=ls, linewidth=2)
+            ax.plot(vals, np.full(len(vals), -rug_h), marker='|', linestyle='none',
+                    color=color, alpha=0.6, markersize=8, markeredgewidth=1.2)
+            n_by_label[label] = len(vals)
+            if label not in legend_labels:
+                legend_handles.append(ln)
+                legend_labels.append(label)
+
+        ax.set_xlim(xlim)
+        ax.set_ylim(-rug_h * 1.6, max_density * 1.15)
+        if n_by_label:
+            n_text = '  '.join(f'{lab}: n={cnt}' for lab, cnt in n_by_label.items())
+            ax.text(0.98, 0.97, n_text, transform=ax.transAxes, ha='right', va='top',
+                    fontsize=8 + font_add)
+
+        ax.set_title(dow_label, fontsize=14 + font_add, pad=6)
+
+    fig.suptitle(f'Recurrent peak-period start/end time distributions — {station_label}',
+                 fontsize=18 + font_add, y=1.04)
+    fig.supxlabel('Clock time (h)', fontsize=14 + font_add)
+    fig.supylabel('Density', fontsize=14 + font_add)
+    fig.legend(legend_handles, legend_labels, loc='upper center',
+               bbox_to_anchor=(0.5, 1.08), ncol=4, fontsize=12 + font_add, frameon=False)
+
+    save_dir = save_dir or cfg.get('rc_save_dir', cfg.get('save_dir', './02 fig/17 recurrent_checks'))
+    os.makedirs(save_dir, exist_ok=True)
+    out_name = out_name or f'recurrent_time_distribution_by_dow_{vds_num}'
+    out_path = os.path.join(save_dir, f'{out_name}.png')
+    fig.savefig(out_path, dpi=dpi, bbox_inches='tight')
+    plt.show()
+    print('Saved:', out_path)
+    return out_path
 
 
