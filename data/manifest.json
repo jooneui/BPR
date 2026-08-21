@@ -1,0 +1,110 @@
+{
+  "stations": [
+    {
+      "vds": "1203481",
+      "label": "SR91-WB",
+      "corridor": "SR91",
+      "lat": 33.859047,
+      "lon": -118.034214,
+      "file": "1203481.json",
+      "n_rows": 1891,
+      "excluded_periods": [
+        "AM"
+      ]
+    },
+    {
+      "vds": "1203506",
+      "label": "SR91-EB",
+      "corridor": "SR91",
+      "lat": 33.856083,
+      "lon": -118.026091,
+      "file": "1203506.json",
+      "n_rows": 4152,
+      "excluded_periods": []
+    },
+    {
+      "vds": "1214006",
+      "label": "I5 SB-1",
+      "corridor": "I5-SB",
+      "lat": 33.854882,
+      "lon": -117.976235,
+      "file": "1214006.json",
+      "n_rows": 2329,
+      "excluded_periods": [
+        "PM"
+      ]
+    },
+    {
+      "vds": "1205572",
+      "label": "I5 SB-2",
+      "corridor": "I5-SB",
+      "lat": 33.85001,
+      "lon": -117.968231,
+      "file": "1205572.json",
+      "n_rows": 3855,
+      "excluded_periods": [
+        "PM"
+      ]
+    },
+    {
+      "vds": "1212611",
+      "label": "I5 SB-3",
+      "corridor": "I5-SB",
+      "lat": 33.847169,
+      "lon": -117.96276,
+      "file": "1212611.json",
+      "n_rows": 2666,
+      "excluded_periods": [
+        "PM"
+      ]
+    },
+    {
+      "vds": "1205175",
+      "label": "I5 NB-1",
+      "corridor": "I5-NB",
+      "lat": 33.744413,
+      "lon": -117.841283,
+      "file": "1205175.json",
+      "n_rows": 2189,
+      "excluded_periods": [
+        "AM"
+      ]
+    },
+    {
+      "vds": "774204",
+      "label": "SR134 WB-1",
+      "corridor": "SR134-WB",
+      "lat": 34.154161,
+      "lon": -118.343375,
+      "file": "774204.json",
+      "n_rows": 3541,
+      "excluded_periods": []
+    },
+    {
+      "vds": "761003",
+      "label": "SR134 EB-1",
+      "corridor": "SR134-EB",
+      "lat": 34.155121,
+      "lon": -118.309741,
+      "file": "761003.json",
+      "n_rows": 5168,
+      "excluded_periods": [
+        "AM"
+      ]
+    },
+    {
+      "vds": "760987",
+      "label": "SR134 EB-2",
+      "corridor": "SR134-EB",
+      "lat": 34.153535,
+      "lon": -118.339979,
+      "file": "760987.json",
+      "n_rows": 3440,
+      "excluded_periods": [
+        "AM"
+      ]
+    }
+  ],
+  "den_threshold": 60,
+  "count_threshold_per_year": 75
+}

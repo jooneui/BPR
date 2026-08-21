@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Near-Recurrent Peak Periods — VDF Calibration Explorer</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+<link rel="stylesheet" href="src/style.css">
+</head>
+<body>
+
+<header>
+  <h1>Is this traffic jam normal — or something's wrong?</h1>
+  <p class="subtitle">
+    An automatic, unsupervised method separates <strong>recurring, demand-driven congestion</strong>
+    from <strong>one-off events</strong>, using nothing but detector data. Move the controls below —
+    the classification and the resulting delay-function fit recompute live in your browser, at every
+    station shown on the map.
+  </p>
+</header>
+
+<main>
+  <section id="map-section">
+    <div id="map"></div>
+    <p class="hint">Click a marker to explore that station. Circle color: green = both AM and PM
+      available, half-filled = one period excluded (insufficient congestion to calibrate).</p>
+  </section>
+
+  <section id="controls" class="panel">
+    <div class="station-header">
+      <h2 id="station-title">Select a station on the map</h2>
+      <div id="period-toggle" class="toggle-group" hidden>
+        <button data-period="AM" class="toggle active">AM</button>
+        <button data-period="PM" class="toggle">PM</button>
+      </div>
+    </div>
+
+    <div id="excluded-notice" class="notice" hidden></div>
+
+    <div id="sliders" class="sliders" hidden>
+      <div class="slider-row">
+        <label for="eps-slider">RDP_v tolerance (ε<sub>start</sub> = ε<sub>end</sub>)</label>
+        <input type="range" id="eps-slider" min="0.05" max="0.5" step="0.01" value="0.15">
+        <span id="eps-value" class="slider-value">0.15 h</span>
+        <button id="eps-reset" class="reset-btn" title="Reset to reference value">↺ reference</button>
+      </div>
+      <div class="slider-row">
+        <label for="minlen-slider">Minimum segment length (L, weeks)</label>
+        <input type="range" id="minlen-slider" min="1" max="8" step="1" value="3">
+        <span id="minlen-value" class="slider-value">3</span>
+        <button id="minlen-reset" class="reset-btn" title="Reset to reference value">↺ reference</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="heatmap-section" class="panel" hidden>
+    <h2>Week × day-of-week classification</h2>
+    <p class="panel-desc">
+      Each cell is one week, on one day of the week, for the selected station and period.
+      <span class="legend"><span class="swatch recurrent"></span>recurrent</span>
+      <span class="legend"><span class="swatch nonrecurrent"></span>congested, not recurrent</span>
+      <span class="legend"><span class="swatch none"></span>no congestion detected</span>
+    </p>
+    <div id="heatmap"></div>
+    <div id="heatmap-stats" class="stats"></div>
+  </section>
+
+  <section id="bpr-section" class="panel" hidden>
+    <h2>Volume–delay function calibration</h2>
+    <p class="panel-desc">
+      Each point is one retained near-recurrent interval: demand (x) vs. travel-time ratio (y),
+      log-log. The line is the fitted BPR exponent β. Gray points are the same station's fit using
+      conventional fixed-clock temporal units, for comparison — computed once, not affected by the
+      controls above.
+    </p>
+    <div id="bpr-chart"></div>
+    <div id="bpr-stats" class="stats"></div>
+  </section>
+
+  <section id="about" class="panel">
+    <h2>Why this matters</h2>
+    <p>
+      Every routing and congestion-pricing model that uses the Bureau of Public Roads (BPR) function
+      assumes an exponent β near <strong>4</strong>. Calibrated over the near-recurrent peak period
+      instead of a fixed clock window, the exponents found here are consistently
+      <strong>near 1</strong> — and conventional fixed-window units sometimes produce
+      theoretically-inadmissible <em>negative</em> exponents, which never happens with the
+      near-recurrent unit. See the underlying paper for the full derivation and statistical tests.
+    </p>
+  </section>
+</main>
+
+<footer>
+  <p>Near-Recurrent Peak Period Identification — Hong &amp; Jin, TRB 2027. Site built with FPEV cadence.</p>
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+<script src="src/rdpv.js"></script>
+<script src="src/bpr.js"></script>
+<script src="src/ui.js"></script>
+</body>
+</html>
