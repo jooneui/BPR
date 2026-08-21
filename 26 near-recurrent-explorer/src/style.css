@@ -1,0 +1,109 @@
+:root {
+  --bg: #0f1420;
+  --panel: #161d2e;
+  --border: #2a3550;
+  --text: #e6e9f2;
+  --text-dim: #9aa4bf;
+  --accent: #5eb3ff;
+  --recurrent: #3fb950;
+  --nonrecurrent: #f0883e;
+  --none: #2a3550;
+  --excluded: #f85149;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+header {
+  padding: 2rem 1.5rem 1.25rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+header h1 { font-size: 1.6rem; margin: 0 0 0.5rem; }
+.subtitle { color: var(--text-dim); font-size: 0.98rem; }
+
+main {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 1.5rem 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+}
+.panel h2 { margin-top: 0; font-size: 1.15rem; }
+.panel-desc { color: var(--text-dim); font-size: 0.9rem; margin-bottom: 1rem; }
+
+#map-section { padding: 0; overflow: hidden; border-radius: 10px; border: 1px solid var(--border); }
+#map { height: 380px; width: 100%; }
+.hint { padding: 0.6rem 1rem; margin: 0; font-size: 0.85rem; color: var(--text-dim); background: var(--panel); }
+
+.station-header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 0.75rem; }
+#station-title { margin: 0; font-size: 1.2rem; }
+
+.toggle-group { display: flex; gap: 0.4rem; }
+.toggle {
+  padding: 0.4rem 1rem; border-radius: 6px; border: 1px solid var(--border);
+  background: transparent; color: var(--text); cursor: pointer; font-size: 0.9rem;
+}
+.toggle.active { background: var(--accent); color: #04101f; border-color: var(--accent); font-weight: 600; }
+
+.notice {
+  margin-top: 1rem; padding: 0.8rem 1rem; border-radius: 8px;
+  background: rgba(248, 81, 73, 0.12); border: 1px solid rgba(248, 81, 73, 0.4);
+  color: #ffb4ae; font-size: 0.92rem;
+}
+
+.sliders { margin-top: 1.25rem; display: flex; flex-direction: column; gap: 1rem; }
+.slider-row { display: grid; grid-template-columns: minmax(180px, 260px) 1fr auto auto; align-items: center; gap: 0.75rem; }
+.slider-row label { font-size: 0.88rem; color: var(--text-dim); }
+.slider-row input[type=range] { width: 100%; accent-color: var(--accent); }
+.slider-value { font-variant-numeric: tabular-nums; font-size: 0.9rem; min-width: 3.5rem; text-align: right; }
+.reset-btn {
+  background: transparent; border: 1px solid var(--border); color: var(--text-dim);
+  border-radius: 6px; padding: 0.3rem 0.6rem; font-size: 0.78rem; cursor: pointer;
+}
+.reset-btn:hover { color: var(--text); border-color: var(--accent); }
+
+.legend { display: inline-flex; align-items: center; gap: 0.35rem; margin-right: 1rem; font-size: 0.85rem; }
+.swatch { width: 12px; height: 12px; border-radius: 3px; display: inline-block; }
+.swatch.recurrent { background: var(--recurrent); }
+.swatch.nonrecurrent { background: var(--nonrecurrent); }
+.swatch.none { background: var(--none); }
+
+#heatmap { overflow-x: auto; }
+#heatmap svg { display: block; }
+.hm-cell { stroke: var(--bg); stroke-width: 1.5; }
+.hm-cell.recurrent { fill: var(--recurrent); }
+.hm-cell.nonrecurrent { fill: var(--nonrecurrent); }
+.hm-cell.none { fill: var(--none); }
+.hm-label { fill: var(--text-dim); font-size: 10px; }
+
+#bpr-chart svg { display: block; margin: 0 auto; }
+.bpr-point.live { fill: var(--accent); }
+.bpr-fit-line { stroke: var(--accent); stroke-width: 2; fill: none; }
+.bpr-axis { stroke: var(--border); stroke-width: 1; }
+.bpr-axis-label { fill: var(--text-dim); font-size: 11px; }
+
+.stats { margin-top: 0.75rem; font-size: 0.88rem; color: var(--text-dim); display: flex; gap: 1.5rem; flex-wrap: wrap; }
+.stats b { color: var(--text); }
+
+#about p { color: var(--text-dim); font-size: 0.92rem; }
+
+footer { text-align: center; padding: 1.5rem; color: var(--text-dim); font-size: 0.82rem; }
+
+.station-marker-eligible { fill: var(--recurrent); }
+.station-marker-partial { fill: var(--nonrecurrent); }

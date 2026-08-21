@@ -14,3 +14,7 @@
 
 # traffic_utils python files
 !traffic_utils/*.py
+
+# near-recurrent-explorer site — tracked in full, including data/*.json:
+# GitHub Pages serves these directly, no build/regeneration step at deploy time.
+!26 near-recurrent-explorer/**
